@@ -18,12 +18,31 @@ export default function RegisterPage() {
   // --- Data Spesifik Kelompok Tani (Poktan) ---
   const [namaKelompok, setNamaKelompok] = useState<string>("");
   const [kecamatan, setKecamatan] = useState<string>("Pandeglang"); // default pusat
+  const [inputNamaAnggota, setInputNamaAnggota] = useState<string>(""); // Menggunakan input string dipisah koma
   const [jumlahAnggota, setJumlahAnggota] = useState<number>(0);
   const [hargaSewa, setHargaSewa] = useState<number>(0);
   const [latitude, setLatitude] = useState<number>(-6.3112);
   const [longitude, setLongitude] = useState<number>(105.8385);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [locLoading, setLocLoading] = useState<boolean>(false);
+
+  // Fungsi memproses input string nama anggota, menghitung jumlah, dan menentukan ketua
+  const handleAnggotaInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setInputNamaAnggota(value);
+
+    if (!value.trim()) {
+      setJumlahAnggota(0);
+      return;
+    }
+
+    // Pisahkan berdasarkan koma dan buang baris/spasi yang kosong
+    const listAnggota = value
+      .split(",")
+      .map((name) => name.trim())
+      .filter((name) => name !== "");
+    setJumlahAnggota(listAnggota.length);
+  };
 
   // Fungsi Deteksi Lokasi Otomatis Browser (GPS Geolocation)
   const handleDetectLocation = () => {
@@ -61,78 +80,69 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // 1. Daftarkan akun core auth utama ke Supabase
-      const { data: authData, error: signUpError } = await supabase.auth.signUp(
-        {
+      let uploadedBannerUrl = "";
+
+      // 1. Proses upload gambar ke storage tetap dilakukan di client (Gunakan bucket public)
+      if (selectedRole === "poktan" && imageFile) {
+        const fileExt = imageFile.name.split(".").pop();
+        const fileName = `temp-${Date.now()}.${fileExt}`;
+        const filePath = `banners/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("poktan-media")
+          .upload(filePath, imageFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from("poktan-media")
+          .getPublicUrl(filePath);
+
+        uploadedBannerUrl = publicUrlData.publicUrl;
+      }
+
+      // Olah data nama anggota
+      const arrayNamaBersih = inputNamaAnggota
+        .split(",")
+        .map((n) => n.trim())
+        .filter((n) => n !== "");
+
+      const namaKetua =
+        arrayNamaBersih.length > 0 ? arrayNamaBersih[0] : fullName;
+
+      // 2. Kirim data ke API Route internal kita untuk diproses secara aman di sisi server
+      const response = await fetch("/api/register-poktan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           email,
           password,
-          options: {
-            data: {
-              full_name: fullName,
-              chosen_role: selectedRole,
-            },
-          },
-        },
+          fullName,
+          selectedRole,
+          namaKelompok,
+          kecamatan,
+          namaKetua,
+          daftarAnggota: arrayNamaBersih.join(", "),
+          jumlahAnggota,
+          hargaSewa,
+          bannerUrl: uploadedBannerUrl,
+          latitude,
+          longitude,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      alert(
+        "Pendaftaran berhasil! Tunggu verifikasi admin agar tampil di halaman utama.",
       );
-
-      if (signUpError) throw signUpError;
-      const user = authData?.user;
-
-      if (!user) {
-        throw new Error("Gagal memproses pembuatan kredensial user.");
-      }
-
-      // 2. Jika mendaftar sebagai poktan, jalankan proses unggah gambar & simpan profil tambahan
-      if (selectedRole === "poktan") {
-        let uploadedBannerUrl = "";
-
-        // Proses Upload Banner ke Supabase Storage Bucket jika ada berkas dipilih
-        if (imageFile) {
-          const fileExt = imageFile.name.split(".").pop();
-          const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-          const filePath = `banners/${fileName}`;
-
-          const { error: uploadError } = await supabase.storage
-            .from("poktan-media")
-            .upload(filePath, imageFile);
-
-          if (uploadError) throw uploadError;
-
-          // Ambil link publik berkas gambar yang berhasil diunggah
-          const { data: publicUrlData } = supabase.storage
-            .from("poktan-media")
-            .getPublicUrl(filePath);
-
-          uploadedBannerUrl = publicUrlData.publicUrl;
-        }
-
-        // Simpan data kelompok ke tabel 'poktan_profiles'
-        const { error: poktanError } = await supabase
-          .from("poktan_profiles")
-          .insert([
-            {
-              user_id: user.id,
-              nama_kelompok: namaKelompok || fullName,
-              kecamatan: kecamatan,
-              jumlah_anggota: jumlahAnggota,
-              harga_sewa: hargaSewa,
-              diskon_persen: 0,
-              banner_url: uploadedBannerUrl,
-              latitude: latitude,
-              longitude: longitude,
-              is_active: false, // Menunggu persetujuan admin panel biar aman
-            },
-          ]);
-
-        if (poktanError) throw poktanError;
-      }
-
-      alert("Pendaftaran berhasil! Akun Anda telah resmi dikonfigurasi.");
       router.push("/login");
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Terjadi kesalahan sistem.";
-      alert(msg);
+      alert(err instanceof Error ? err.message : "Terjadi kesalahan.");
     } finally {
       setLoading(false);
     }
@@ -145,9 +155,7 @@ export default function RegisterPage() {
         className="w-full max-w-lg bg-white p-6 rounded-md shadow-sm border border-gray-200 space-y-4"
       >
         <div className="text-center">
-          <h2 className="text-xl font-bold text-gray-800">
-            Form Pendaftaran
-          </h2>
+          <h2 className="text-xl font-bold text-gray-800">Form Pendaftaran</h2>
           <p className="text-xs text-gray-400 mt-1">
             Silakan lengkapi form pendaftaran di bawah ini
           </p>
@@ -284,18 +292,36 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* BARU: Input Nama-Nama Anggota Menggunakan Tanda Koma */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Nama-Nama Anggota Kelompok (Pisahkan dengan tanda koma)
+              </label>
+              <textarea
+                required
+                rows={3}
+                value={inputNamaAnggota}
+                onChange={handleAnggotaInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none text-sm focus:border-green-600 resize-none"
+                placeholder="Urutan ke-1 Otomatis Ketua. Contoh: Ahmad (Ketua), Dani, Yusuf, Siti"
+              />
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                * Urutan nama pertama yang Anda masukkan otomatis terdaftar
+                sebagai **Ketua Kelompok**.
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">
-                  Jumlah Anggota Kelompok
+                  Jumlah Anggota Terdeteksi (Kalkulasi Otomatis)
                 </label>
                 <input
                   type="number"
-                  required
-                  min={1}
+                  readOnly
+                  disabled
                   value={jumlahAnggota}
-                  onChange={(e) => setJumlahAnggota(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none text-sm focus:border-green-600"
+                  className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md outline-none text-sm text-gray-600 font-bold"
                 />
               </div>
 
