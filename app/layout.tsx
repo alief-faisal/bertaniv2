@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Roboto } from "next/font/google";
 import "./globals.css";
+// 1. Impor komponen SmoothScroll yang akan kita buat di langkah kedua
+import SmoothScroll from "@/components/SmoothScroll";
 
 const roboto = Roboto({
   subsets: ["latin"],
@@ -34,7 +36,8 @@ export default function RootLayout({
       <body
         className={`${roboto.variable} font-sans bg-gray-50 text-gray-900 antialiased`}
       >
-        {children}
+        {/* 2. Bungkus children dengan SmoothScroll agar seluruh halaman menjadi smooth */}
+        <SmoothScroll>{children}</SmoothScroll>
       </body>
     </html>
   );

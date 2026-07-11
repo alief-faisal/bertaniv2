@@ -2,23 +2,46 @@
 
 import React, { useState, FormEvent, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/utils/supabase";
-import { UserRole } from "@/types";
+import { RegisterPayload, RegisterResponse, RegistrableRole } from "@/types";
+
+const KECAMATAN_LIST = [
+  "Angsana", "Banjar", "Bojong", "Cadasari", "Carita", "Cibaliung",
+  "Cibitung", "Cigeulis", "Cikedal", "Cikeusik", "Cimanggu", "Cimanuk",
+  "Cipeucang", "Cisata", "Jiput", "Kaduhejo", "Karang Tanjung", "Koroncong",
+  "Labuan", "Majasari", "Mandalawangi", "Mekarjaya", "Menes", "Munjul",
+  "Pagelaran", "Pandeglang", "Panimbang", "Patia", "Picung", "Pulosari",
+  "Saketi", "Sindangresmi", "Sobang", "Sukaresmi", "Sumur",
+];
+
+const MAX_BANNER_MB = 5;
+const ALLOWED_IMAGE_EXT = ["jpg", "jpeg", "png", "webp"];
+
+// Ubah File menjadi base64 di browser, tanpa menyentuh Supabase Storage
+// sama sekali dari client (uploadnya dilakukan di server, lihat route.ts).
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Gagal membaca berkas gambar."));
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState<boolean>(false);
+  const [formError, setFormError] = useState<string>("");
 
   // --- Kredensial Akun Utama ---
   const [fullName, setFullName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
-  const [selectedRole, setSelectedRole] = useState<UserRole>("user");
+  const [selectedRole, setSelectedRole] = useState<RegistrableRole>("user");
 
   // --- Data Spesifik Kelompok Tani (Poktan) ---
   const [namaKelompok, setNamaKelompok] = useState<string>("");
-  const [kecamatan, setKecamatan] = useState<string>("Pandeglang"); // default pusat
-  const [inputNamaAnggota, setInputNamaAnggota] = useState<string>(""); // Menggunakan input string dipisah koma
+  const [kecamatan, setKecamatan] = useState<string>("Pandeglang");
+  const [inputNamaAnggota, setInputNamaAnggota] = useState<string>("");
   const [jumlahAnggota, setJumlahAnggota] = useState<number>(0);
   const [hargaSewa, setHargaSewa] = useState<number>(0);
   const [latitude, setLatitude] = useState<number>(-6.3112);
@@ -26,7 +49,6 @@ export default function RegisterPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [locLoading, setLocLoading] = useState<boolean>(false);
 
-  // Fungsi memproses input string nama anggota, menghitung jumlah, dan menentukan ketua
   const handleAnggotaInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setInputNamaAnggota(value);
@@ -36,7 +58,6 @@ export default function RegisterPage() {
       return;
     }
 
-    // Pisahkan berdasarkan koma dan buang baris/spasi yang kosong
     const listAnggota = value
       .split(",")
       .map((name) => name.trim())
@@ -44,105 +65,114 @@ export default function RegisterPage() {
     setJumlahAnggota(listAnggota.length);
   };
 
-  // Fungsi Deteksi Lokasi Otomatis Browser (GPS Geolocation)
   const handleDetectLocation = () => {
     if (!navigator.geolocation) {
-      alert("Browser Anda tidak mendukung deteksi lokasi otomatis GPS.");
+      setFormError("Browser Anda tidak mendukung deteksi lokasi otomatis GPS.");
       return;
     }
 
     setLocLoading(true);
+    setFormError("");
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setLatitude(position.coords.latitude);
         setLongitude(position.coords.longitude);
         setLocLoading(false);
-        alert("Lokasi terdeteksi");
       },
       (error) => {
         console.error(error);
-        alert("Gagal mendeteksi lokasi. Pastikan izin akses lokasi aktif.");
+        setFormError("Gagal mendeteksi lokasi. Pastikan izin akses lokasi aktif.");
         setLocLoading(false);
       },
       { enableHighAccuracy: true },
     );
   };
 
-  // Fungsi ambil berkas gambar banner
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setImageFile(e.target.files[0]);
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    if (!ALLOWED_IMAGE_EXT.includes(ext)) {
+      setFormError("Format gambar tidak didukung. Gunakan JPG, PNG, atau WEBP.");
+      e.target.value = "";
+      setImageFile(null);
+      return;
     }
+    if (file.size > MAX_BANNER_MB * 1024 * 1024) {
+      setFormError(`Ukuran gambar maksimal ${MAX_BANNER_MB}MB.`);
+      e.target.value = "";
+      setImageFile(null);
+      return;
+    }
+
+    setFormError("");
+    setImageFile(file);
   };
 
   const handleRegister = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setFormError("");
+
+    if (password.length < 6) {
+      setFormError("Kata sandi minimal 6 karakter.");
+      return;
+    }
+    if (selectedRole === "poktan" && !imageFile) {
+      setFormError("Foto profil/banner kelompok wajib diunggah.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      let uploadedBannerUrl = "";
+      let bannerBase64: string | undefined;
+      let bannerFileName: string | undefined;
 
-      // 1. Proses upload gambar ke storage tetap dilakukan di client (Gunakan bucket public)
       if (selectedRole === "poktan" && imageFile) {
-        const fileExt = imageFile.name.split(".").pop();
-        const fileName = `temp-${Date.now()}.${fileExt}`;
-        const filePath = `banners/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("poktan-media")
-          .upload(filePath, imageFile);
-
-        if (uploadError) throw uploadError;
-
-        const { data: publicUrlData } = supabase.storage
-          .from("poktan-media")
-          .getPublicUrl(filePath);
-
-        uploadedBannerUrl = publicUrlData.publicUrl;
+        bannerBase64 = await fileToBase64(imageFile);
+        bannerFileName = imageFile.name;
       }
 
-      // Olah data nama anggota
       const arrayNamaBersih = inputNamaAnggota
         .split(",")
         .map((n) => n.trim())
         .filter((n) => n !== "");
 
-      const namaKetua =
-        arrayNamaBersih.length > 0 ? arrayNamaBersih[0] : fullName;
+      const namaKetua = arrayNamaBersih.length > 0 ? arrayNamaBersih[0] : fullName;
 
-      // 2. Kirim data ke API Route internal kita untuk diproses secara aman di sisi server
+      const payload: RegisterPayload = {
+        email,
+        password,
+        fullName,
+        selectedRole,
+        namaKelompok,
+        kecamatan,
+        namaKetua,
+        daftarAnggota: arrayNamaBersih.join(", "),
+        jumlahAnggota,
+        hargaSewa,
+        latitude,
+        longitude,
+        bannerBase64,
+        bannerFileName,
+      };
+
       const response = await fetch("/api/register-poktan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          password,
-          fullName,
-          selectedRole,
-          namaKelompok,
-          kecamatan,
-          namaKetua,
-          daftarAnggota: arrayNamaBersih.join(", "),
-          jumlahAnggota,
-          hargaSewa,
-          bannerUrl: uploadedBannerUrl,
-          latitude,
-          longitude,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      const result = await response.json();
+      const result = (await response.json()) as RegisterResponse;
 
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Registrasi gagal.");
       }
 
-      alert(
-        "Pendaftaran berhasil! Tunggu verifikasi admin agar tampil di halaman utama.",
-      );
-      router.push("/login");
+      router.push("/login?registered=1");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Terjadi kesalahan.");
+      setFormError(err instanceof Error ? err.message : "Terjadi kesalahan.");
     } finally {
       setLoading(false);
     }
@@ -153,23 +183,42 @@ export default function RegisterPage() {
       <form
         onSubmit={handleRegister}
         className="w-full max-w-lg bg-white p-6 rounded-md shadow-sm border border-gray-200 space-y-4"
+        aria-describedby={formError ? "form-error" : undefined}
       >
         <div className="text-center">
-          <h2 className="text-xl font-bold text-gray-800">Form Pendaftaran</h2>
+          <h1 className="text-xl font-bold text-gray-800">Form Pendaftaran</h1>
           <p className="text-xs text-gray-400 mt-1">
             Silakan lengkapi form pendaftaran di bawah ini
           </p>
         </div>
 
+        {formError && (
+          <div
+            id="form-error"
+            role="alert"
+            className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
+          >
+            {formError}
+          </div>
+        )}
+
         {/* --- AKUN UTAMA --- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <fieldset className="grid grid-cols-1 md:grid-cols-2 gap-4 border-0 p-0 m-0">
+          <legend className="sr-only">Data akun utama</legend>
+
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
+            <label
+              htmlFor="fullName"
+              className="block text-xs font-semibold text-gray-600 mb-1"
+            >
               Nama Lengkap Anda
             </label>
             <input
+              id="fullName"
+              name="fullName"
               type="text"
               required
+              autoComplete="name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none text-sm focus:border-green-600"
@@ -178,28 +227,41 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
+            <label
+              htmlFor="selectedRole"
+              className="block text-xs font-semibold text-gray-600 mb-1"
+            >
               Daftar Sebagai Peran
             </label>
             <select
+              id="selectedRole"
+              name="selectedRole"
               value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+              onChange={(e) => setSelectedRole(e.target.value as RegistrableRole)}
               className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md outline-none text-sm focus:border-green-600"
             >
               <option value="user">Pengguna</option>
               <option value="poktan">Kelompok Tani</option>
             </select>
           </div>
-        </div>
+        </fieldset>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <fieldset className="grid grid-cols-1 md:grid-cols-2 gap-4 border-0 p-0 m-0">
+          <legend className="sr-only">Kredensial login</legend>
+
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
+            <label
+              htmlFor="email"
+              className="block text-xs font-semibold text-gray-600 mb-1"
+            >
               Email
             </label>
             <input
+              id="email"
+              name="email"
               type="email"
               required
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none text-sm focus:border-green-600"
@@ -208,35 +270,48 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
+            <label
+              htmlFor="password"
+              className="block text-xs font-semibold text-gray-600 mb-1"
+            >
               Kata Sandi
             </label>
             <input
+              id="password"
+              name="password"
               type="password"
               required
+              minLength={6}
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none text-sm focus:border-green-600"
-              placeholder="••••••••"
+              placeholder="Minimal 6 karakter"
             />
           </div>
-        </div>
+        </fieldset>
 
         {/* --- FORM KELOMPOK TANI (Hanya muncul jika role = 'poktan') --- */}
         {selectedRole === "poktan" && (
-          <div className="border-t border-dashed border-gray-200 pt-4 space-y-4">
-            <h3 className="text-xs font-bold text-green-700 uppercase tracking-wider">
+          <fieldset className="border-t border-dashed border-gray-200 pt-4 space-y-4 px-0 pb-0">
+            <legend className="text-xs font-bold text-green-700 uppercase tracking-wider">
               Informasi Detail Kelompok Tani (Poktan)
-            </h3>
+            </legend>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                <label
+                  htmlFor="namaKelompok"
+                  className="block text-xs font-semibold text-gray-600 mb-1"
+                >
                   Nama Kelompok Tani
                 </label>
                 <input
+                  id="namaKelompok"
+                  name="namaKelompok"
                   type="text"
                   required
+                  minLength={3}
                   value={namaKelompok}
                   onChange={(e) => setNamaKelompok(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none text-sm focus:border-green-600"
@@ -245,91 +320,79 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                <label
+                  htmlFor="kecamatan"
+                  className="block text-xs font-semibold text-gray-600 mb-1"
+                >
                   Wilayah Kecamatan
                 </label>
                 <select
+                  id="kecamatan"
+                  name="kecamatan"
                   value={kecamatan}
                   onChange={(e) => setKecamatan(e.target.value)}
                   className="w-full px-3 py-2 max-h-90 bg-white border border-gray-300 rounded-md outline-none text-sm focus:border-green-600"
                 >
-                  <option value="Angsana">Angsana</option>
-                  <option value="Banjar">Banjar</option>
-                  <option value="Bojong">Bojong</option>
-                  <option value="Cadasari">Cadasari</option>
-                  <option value="Carita">Carita</option>
-                  <option value="Cibaliung">Cibaliung</option>
-                  <option value="Cibitung">Cibitung</option>
-                  <option value="Cigeulis">Cigeulis</option>
-                  <option value="Cikedal">Cikedal</option>
-                  <option value="Cikeusik">Cikeusik</option>
-                  <option value="Cimanggu">Cimanggu</option>
-                  <option value="Cimanuk">Cimanuk</option>
-                  <option value="Cipeucang">Cipeucang</option>
-                  <option value="Cisata">Cisata</option>
-                  <option value="Jiput">Jiput</option>
-                  <option value="Kaduhejo">Kaduhejo</option>
-                  <option value="Karang Tanjung">Karang Tanjung</option>
-                  <option value="Koroncong">Koroncong</option>
-                  <option value="Labuan">Labuan</option>
-                  <option value="Majasari">Majasari</option>
-                  <option value="Mandalawangi">Mandalawangi</option>
-                  <option value="Mekarjaya">Mekarjaya</option>
-                  <option value="Menes">Menes</option>
-                  <option value="Munjul">Munjul</option>
-                  <option value="Pagelaran">Pagelaran</option>
-                  <option value="Pandeglang">Pandeglang</option>
-                  <option value="Panimbang">Panimbang</option>
-                  <option value="Patia">Patia</option>
-                  <option value="Picung">Picung</option>
-                  <option value="Pulosari">Pulosari</option>
-                  <option value="Saketi">Saketi</option>
-                  <option value="Sindangresmi">Sindangresmi</option>
-                  <option value="Sobang">Sobang</option>
-                  <option value="Sukaresmi">Sukaresmi</option>
-                  <option value="Sumur">Sumur</option>
+                  {KECAMATAN_LIST.map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
 
-            {/* BARU: Input Nama-Nama Anggota Menggunakan Tanda Koma */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">
+              <label
+                htmlFor="inputNamaAnggota"
+                className="block text-xs font-semibold text-gray-600 mb-1"
+              >
                 Nama-Nama Anggota Kelompok (Pisahkan dengan tanda koma)
               </label>
               <textarea
+                id="inputNamaAnggota"
+                name="inputNamaAnggota"
                 required
                 rows={3}
                 value={inputNamaAnggota}
                 onChange={handleAnggotaInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none text-sm focus:border-green-600 resize-none"
-                placeholder="Urutan ke-1 Otomatis Ketua. Contoh: Ahmad (Ketua), Dani, Yusuf, Siti"
+                placeholder="Urutan ke-1 otomatis jadi Ketua. Contoh: Ahmad (Ketua), Dani, Yusuf, Siti"
+                aria-describedby="anggota-hint"
               />
-              <p className="text-[11px] text-gray-400 mt-0.5">
-                * Urutan nama pertama yang Anda masukkan otomatis terdaftar
-                sebagai **Ketua Kelompok**.
+              <p id="anggota-hint" className="text-[11px] text-gray-400 mt-0.5">
+                Nama pertama yang Anda masukkan otomatis terdaftar sebagai Ketua
+                Kelompok.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                <label
+                  htmlFor="jumlahAnggota"
+                  className="block text-xs font-semibold text-gray-600 mb-1"
+                >
                   Jumlah Anggota Terdeteksi (Kalkulasi Otomatis)
                 </label>
-                <input
-                  type="number"
-                  readOnly
-                  disabled
-                  value={jumlahAnggota}
-                  className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md outline-none text-sm text-gray-600 font-bold"
-                />
+                <output
+                  id="jumlahAnggota"
+                  htmlFor="inputNamaAnggota"
+                  className="block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-600 font-bold"
+                >
+                  {jumlahAnggota}
+                </output>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                <label
+                  htmlFor="hargaSewa"
+                  className="block text-xs font-semibold text-gray-600 mb-1"
+                >
                   Tarif Sewa Alat Utama (Rp)
                 </label>
                 <input
+                  id="hargaSewa"
+                  name="hargaSewa"
                   type="number"
                   required
                   min={0}
@@ -340,59 +403,74 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Bagian Koordinat Lokasi GPS */}
             <div>
               <div className="flex justify-between items-center mb-1">
-                <label className="block text-xs font-semibold text-gray-600">
+                <span className="block text-xs font-semibold text-gray-600">
                   Koordinat Pemetaan Lahan
-                </label>
+                </span>
                 <button
                   type="button"
                   onClick={handleDetectLocation}
                   disabled={locLoading}
                   className="text-[11px] text-white bg-green-700 px-2 py-0.5 rounded border disabled:opacity-50"
                 >
-                  {locLoading
-                    ? "Mencari Satelit GPS..."
-                    : "Deteksi Lokasi Otomatis"}
+                  {locLoading ? "Mencari Satelit GPS..." : "Deteksi Lokasi Otomatis"}
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <input
-                  type="number"
-                  step="any"
-                  required
-                  readOnly
-                  value={latitude}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm text-gray-500 outline-none"
-                  placeholder="Latitude"
-                />
-                <input
-                  type="number"
-                  step="any"
-                  required
-                  readOnly
-                  value={longitude}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm text-gray-500 outline-none"
-                  placeholder="Longitude"
-                />
+                <div>
+                  <label htmlFor="latitude" className="sr-only">
+                    Latitude
+                  </label>
+                  <input
+                    id="latitude"
+                    name="latitude"
+                    type="number"
+                    step="any"
+                    required
+                    readOnly
+                    value={latitude}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm text-gray-500 outline-none"
+                    placeholder="Latitude"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="longitude" className="sr-only">
+                    Longitude
+                  </label>
+                  <input
+                    id="longitude"
+                    name="longitude"
+                    type="number"
+                    step="any"
+                    required
+                    readOnly
+                    value={longitude}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm text-gray-500 outline-none"
+                    placeholder="Longitude"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Bagian Input Foto Banner */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">
-                Unggah Foto Profil/Banner Kelompok
+              <label
+                htmlFor="bannerFile"
+                className="block text-xs font-semibold text-gray-600 mb-1"
+              >
+                Unggah Foto Profil/Banner Kelompok (JPG/PNG/WEBP, maks {MAX_BANNER_MB}MB)
               </label>
               <input
+                id="bannerFile"
+                name="bannerFile"
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 required
                 onChange={handleFileChange}
                 className="w-full text-xs text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer"
               />
             </div>
-          </div>
+          </fieldset>
         )}
 
         <button
@@ -403,7 +481,6 @@ export default function RegisterPage() {
           {loading ? "Sedang Memproses Pendaftaran..." : "Daftar Akun Sekarang"}
         </button>
 
-        {/* Tombol Simpel ke Halaman Login */}
         <div className="text-center pt-2">
           <button
             type="button"

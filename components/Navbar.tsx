@@ -1,12 +1,19 @@
+// 📁 Simpan sebagai: components/Navbar.tsx
 "use client";
 
 import React, { useState, useEffect, MouseEvent, FormEvent } from "react";
 import Link from "next/link";
-import { Search, ChevronDown, Heart, LayoutDashboard } from "lucide-react";
+import {
+  Search,
+  ChevronDown,
+  Heart,
+  LayoutDashboard,
+  Receipt,
+} from "lucide-react";
 import { supabase } from "@/utils/supabase";
-import { UserRole } from "@/types";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
-const KECAMATAN_LIST: string[] = [
+export const KECAMATAN_LIST: string[] = [
   "Angsana",
   "Banjar",
   "Bojong",
@@ -46,40 +53,98 @@ const KECAMATAN_LIST: string[] = [
 
 interface NavbarProps {
   onFilterChange: (kecamatan: string, search: string) => void;
+  // Dipanggil dengan koordinat asli pengguna setelah GPS browser berhasil,
+  // supaya halaman utama bisa menghitung & menampilkan badge jarak per kartu.
+  onLocationDetected?: (latitude: number, longitude: number) => void;
 }
 
-export default function Navbar({ onFilterChange }: NavbarProps) {
+// Batasi angka badge supaya layout tidak melebar, mis. 99+ bukan 134.
+function formatBadgeCount(count: number): string {
+  return count > 99 ? "99+" : String(count);
+}
+
+export default function Navbar({
+  onFilterChange,
+  onLocationDetected,
+}: NavbarProps) {
   const [isOpenDropdown, setIsOpenDropdown] = useState<boolean>(false);
   const [isOpenMobileMenu, setIsOpenMobileMenu] = useState<boolean>(false);
   const [selectedLoc, setSelectedLoc] = useState<string>("Semua Wilayah");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [userRole, setUserRole] = useState<UserRole>("guest");
   const [loadingLocation, setLoadingLocation] = useState<boolean>(false);
 
-  useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", session.user.id)
-          .single();
+  const { userId, role: userRole } = useCurrentUser();
 
-        if (!error && data) {
-          setUserRole(data.role as UserRole);
-        }
-      }
+  // Jumlah favorit & jumlah pesanan milik pengguna yang sedang login,
+  // ditampilkan sebagai badge kecil di navbar.
+  const [favoriteCount, setFavoriteCount] = useState<number>(0);
+  const [orderCount, setOrderCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (!userId) {
+      setFavoriteCount(0);
+      setOrderCount(0);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadCounts = async () => {
+      const [favoriteResult, orderResult] = await Promise.all([
+        supabase
+          .from("user_favorites")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId),
+        supabase
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId),
+      ]);
+      if (!isMounted) return;
+      setFavoriteCount(favoriteResult.count ?? 0);
+      setOrderCount(orderResult.count ?? 0);
     };
-    checkUser();
-  }, []);
+
+    loadCounts();
+
+    // REALTIME: begitu ada baris baru/terhapus di user_favorites atau orders
+    // milik user ini (dari komponen manapun — PoktanCard, OrderModal, dll),
+    // badge di navbar langsung ikut berubah tanpa perlu refresh halaman.
+    const channel = supabase
+      .channel(`navbar-badges-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "user_favorites",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => loadCounts(),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => loadCounts(),
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
 
   const handleDetectLocation = (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    loadingLocation ? null : setLoadingLocation(true);
+    if (loadingLocation) return;
+    setLoadingLocation(true);
 
     if (!navigator.geolocation) {
       alert("Geolocation tidak didukung oleh browser Anda");
@@ -88,16 +153,23 @@ export default function Navbar({ onFilterChange }: NavbarProps) {
     }
 
     navigator.geolocation.getCurrentPosition(
-      () => {
+      (position) => {
+        const { latitude, longitude } = position.coords;
         setSelectedLoc("Lokasi Terdekat");
         setIsOpenDropdown(false);
         setLoadingLocation(false);
-        onFilterChange("Pandeglang", searchQuery);
+        // Kosongkan filter kecamatan supaya semua poktan tampil, diurutkan
+        // berdasarkan jarak asli dari koordinat GPS (bukan kecamatan tebakan).
+        onFilterChange("", searchQuery);
+        onLocationDetected?.(latitude, longitude);
       },
       () => {
-        alert("Gagal mendeteksi lokasi saat ini.");
+        alert(
+          "Gagal mendeteksi lokasi saat ini. Pastikan izin lokasi browser diaktifkan.",
+        );
         setLoadingLocation(false);
       },
+      { enableHighAccuracy: true },
     );
   };
 
@@ -155,10 +227,15 @@ export default function Navbar({ onFilterChange }: NavbarProps) {
                 e.preventDefault();
                 setIsOpenDropdown(!isOpenDropdown);
               }}
+              aria-haspopup="listbox"
+              aria-expanded={isOpenDropdown}
+              aria-label="Pilih wilayah atau deteksi lokasi"
               className="flex items-center gap-2 px-2.5 md:px-4 h-full text-xs md:text-sm font-medium transition whitespace-nowrap text-gray-700 rounded-l-md"
             >
-              {/* MENGGUNAKAN FONTAWESOME MAP-PIN */}
-              <i className="fa-solid fa-location-dot text-gray-700 text-base flex-shrink-0 w-5 text-center"></i>
+              <i
+                className="fa-solid fa-location-dot text-gray-700 text-base flex-shrink-0 w-5 text-center"
+                aria-hidden="true"
+              ></i>
               <span className="max-w-[95px] md:max-w-[150px] truncate">
                 {selectedLoc}
               </span>
@@ -168,16 +245,22 @@ export default function Navbar({ onFilterChange }: NavbarProps) {
             </button>
 
             {isOpenDropdown && (
-              <div className="absolute left-0 top-full mt-2 w-60 bg-white border border-gray-200 rounded-[10px] shadow-xl max-h-90 overflow-y-auto z-[1001]">
+              <div
+                role="listbox"
+                aria-label="Daftar wilayah"
+                className="absolute left-0 top-full mt-2 w-60 bg-white border border-gray-200 rounded-[10px] shadow-xl max-h-90 overflow-y-auto z-[1001]"
+              >
                 <div className="p-3 border-b border-gray-100 bg-gray-50">
                   <button
                     type="button"
                     onClick={handleDetectLocation}
-                    className="w-full flex items-center gap-2 text-left text-sm font-bold text-[#15803d] hover:opacity-80"
+                    className="w-full flex items-center gap-2 text-left text-sm font-bold text-[#15803d] hover:opacity-80 disabled:opacity-60"
+                    disabled={loadingLocation}
+                    aria-label="Deteksi lokasi GPS saat ini"
                   >
-                    {/* MENGGUNAKAN FONTAWESOME CROSSHAIRS */}
                     <i
                       className={`fa-solid fa-location-crosshairs text-xl ${loadingLocation ? "animate-spin" : ""}`}
+                      aria-hidden="true"
                     ></i>
                     <span>
                       {loadingLocation ? "Mendeteksi..." : "Lokasi saat ini"}
@@ -190,6 +273,8 @@ export default function Navbar({ onFilterChange }: NavbarProps) {
                 </div>
                 <button
                   type="button"
+                  role="option"
+                  aria-selected={selectedLoc === "Semua Wilayah"}
                   onClick={(e) => handleLocationSelect(e, "Semua Wilayah")}
                   className="w-full text-left px-4 py-2 text-xs md:text-sm text-gray-600 hover:bg-green-50 font-semibold text-[#008000] border-b border-gray-100"
                 >
@@ -198,6 +283,8 @@ export default function Navbar({ onFilterChange }: NavbarProps) {
                 {KECAMATAN_LIST.map((kec) => (
                   <button
                     type="button"
+                    role="option"
+                    aria-selected={selectedLoc === `Kec. ${kec}`}
                     key={kec}
                     onClick={(e) => handleLocationSelect(e, kec)}
                     className="w-full text-left px-4 py-2 text-xs md:text-sm text-gray-700 hover:bg-green-50 hover:text-[#008000] transition"
@@ -210,7 +297,11 @@ export default function Navbar({ onFilterChange }: NavbarProps) {
           </div>
 
           <div className="flex items-center flex-1 px-1 h-full rounded-r-md">
+            <label htmlFor="navbar-search" className="sr-only">
+              Cari kelompok tani atau wilayah
+            </label>
             <input
+              id="navbar-search"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -220,6 +311,7 @@ export default function Navbar({ onFilterChange }: NavbarProps) {
             <button
               type="submit"
               className="p-2 text-gray-500 cursor-pointer active:scale-110"
+              aria-label="Cari"
             >
               <Search className="w-7 h-7" />
             </button>
@@ -231,9 +323,35 @@ export default function Navbar({ onFilterChange }: NavbarProps) {
           {userRole !== "guest" && (
             <Link
               href="/user/favorit"
-              className="p-1.5 hover:bg-green-800 rounded-full transition flex items-center justify-center text-white"
+              className="relative p-1.5 hover:bg-green-800 rounded-full transition flex items-center justify-center text-white"
+              aria-label={`Kelompok tani favorit saya${favoriteCount > 0 ? `, ${favoriteCount} tersimpan` : ""}`}
             >
               <Heart className="w-6 h-6 fill-white stroke-none" />
+              {favoriteCount > 0 && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none border border-[#008000]"
+                >
+                  {formatBadgeCount(favoriteCount)}
+                </span>
+              )}
+            </Link>
+          )}
+
+          {/* Muncul otomatis begitu pengguna punya minimal 1 pesanan */}
+          {userRole !== "guest" && orderCount > 0 && (
+            <Link
+              href="/user/riwayat"
+              className="relative p-1.5 hover:bg-green-800 rounded-full transition flex items-center justify-center text-white"
+              aria-label={`Riwayat pembayaran saya, ${orderCount} pesanan`}
+            >
+              <Receipt className="w-6 h-6" />
+              <span
+                aria-hidden="true"
+                className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-yellow-400 text-green-900 text-[10px] font-bold leading-none border border-[#008000]"
+              >
+                {formatBadgeCount(orderCount)}
+              </span>
             </Link>
           )}
 
@@ -282,6 +400,8 @@ export default function Navbar({ onFilterChange }: NavbarProps) {
           <button
             type="button"
             onClick={() => setIsOpenMobileMenu(!isOpenMobileMenu)}
+            aria-label="Buka menu"
+            aria-expanded={isOpenMobileMenu}
             className="md:hidden flex flex-col justify-center items-center w-6 h-6 relative z-[1002]"
           >
             <span
