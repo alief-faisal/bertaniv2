@@ -155,7 +155,6 @@ export default function BannerCarousel() {
               {banner.target_url ? (
                 <a
                   href={banner.target_url}
-                  target="_blank"
                   rel="noopener noreferrer"
                   className="block w-full h-full"
                 >

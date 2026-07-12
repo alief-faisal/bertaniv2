@@ -148,9 +148,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleAddBanner = async (
-    e: React.FormEvent<HTMLFormElement>,
-  ): Promise<void> => {
+  const handleAddBanner = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!bannerFile) {
       alert("Silakan pilih file gambar banner terlebih dahulu.");
@@ -160,8 +158,7 @@ export default function AdminDashboardPage() {
     try {
       setUploadingBanner(true);
       const fileExt = bannerFile.name.split(".").pop();
-      const timestamp = Date.now();
-      const fileName = `banner-${timestamp}.${fileExt}`;
+      const fileName = `banner-${crypto.randomUUID()}.${fileExt}`;
       const filePath = `banners/${fileName}`;
 
       // Upload berkas gambar banner ke storage bucket 'banners'
@@ -231,8 +228,7 @@ export default function AdminDashboardPage() {
       // Jika ada file gambar baru yang dipilih, upload dan hapus yang lama
       if (editBannerFile) {
         const fileExt = editBannerFile.name.split(".").pop();
-        const timestamp = Date.now();
-        const fileName = `banner-${timestamp}.${fileExt}`;
+        const fileName = `banner-${crypto.randomUUID()}.${fileExt}`;
         const filePath = `banners/${fileName}`;
 
         // Upload gambar baru

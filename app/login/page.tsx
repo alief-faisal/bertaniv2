@@ -47,7 +47,7 @@ export default function LoginPage() {
       const msg = err instanceof Error ? err.message : "Kredensial salah.";
       alert(msg);
     } finally {
-      setLoading(false);
+      setLoading(false); // Sudah fix kembali ke logic awal Anda
     }
   };
 
@@ -95,14 +95,21 @@ export default function LoginPage() {
             {loading ? "Memproses..." : "Masuk"}
           </button>
 
-          {/* Tombol Simpel ke Halaman Daftar */}
-          <div className="text-center pt-2">
+          {/* Tombol ke Beranda dan Daftar */}
+          <div className="text-center pt-2 flex flex-col items-center gap-2">
             <button
               type="button"
               onClick={() => router.push("/register")}
               className="text-xs text-green-700 hover:underline"
             >
               Belum punya akun? Daftar
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              className="text-xs text-gray-500 hover:underline"
+            >
+              Kembali ke Beranda
             </button>
           </div>
         </div>

@@ -682,9 +682,16 @@ export default function RegisterPage() {
           <button
             type="button"
             onClick={() => router.push("/login")}
-            className="text-xs text-green-700 hover:underline"
+            className="text-xs text-green-700 hover:underline block mx-auto mb-2"
           >
             Sudah punya akun? Login
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="text-xs text-gray-500 hover:underline block mx-auto"
+          >
+            Kembali ke Beranda
           </button>
         </div>
       </form>

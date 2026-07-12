@@ -225,7 +225,7 @@ export default function PoktanCard({
               </span>
             )}
 
-            <p className="text-xs text-gray-500 flex items-center gap-1">
+            <p className="text-xs text-gray-600 flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
               Kec. {data.kecamatan}
             </p>
@@ -240,12 +240,12 @@ export default function PoktanCard({
           {/* Bagian Harga (Di bawah & Selalu Simetris secara Vertikal) */}
           <div className="pt-4 border-t border-gray-100 flex items-end justify-between">
             <div className="flex flex-col w-full">
-              <span className="text-[12px] text-gray-400">Tarif Jasa</span>
+              <span className="text-[12px] text-gray-600">Tarif Jasa</span>
               <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">
                 <span className="text-lg font-bold text-green-700 whitespace-nowrap">
                   Rp {formatRupiah(hargaDiskon)}
                 </span>
-                <span className="text-[10px] text-gray-400 font-normal">
+                <span className="text-[10px] text-gray-600 font-semibold">
                   / Hari
                 </span>
               </div>
@@ -253,7 +253,7 @@ export default function PoktanCard({
               {/* Tempat Baru: Harga Coret & Badge Diskon Berdampingan */}
               {diskonPersen > 0 && (
                 <div className="mt-1 flex items-center gap-2 flex-wrap">
-                  <span className="text-xs text-gray-500 font-medium relative inline-block before:content-[''] before:absolute before:left-0 before:right-0 before:top-1/2 before:h-[1.5px] before:bg-red-500 before:-translate-y-1/2 before:-rotate-5">
+                  <span className="text-[14px] text-gray-600 font-medium relative inline-block before:content-[''] before:absolute before:left-0 before:right-0 before:top-1/2 before:h-[1.5px] before:bg-red-500 before:-translate-y-1/2 before:-rotate-5">
                     Rp {formatRupiah(hargaSewa)}
                   </span>
                   <span className="bg-red-50 text-red-600 text-[12px] font-semibold px-1.5 py-0.2 rounded header-badge flex items-center gap-1">
