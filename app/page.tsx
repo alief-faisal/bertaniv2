@@ -284,23 +284,6 @@ export default function Home() {
 
           {/* KONTEN UTAMA (DAFTAR CARD) */}
           <div className="flex-1 min-w-0">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
-              <h2
-                id="poktan-heading"
-                className="text-xl font-bold text-gray-800"
-              >
-                Kelompok Tani Terdaftar
-              </h2>
-              {!loading && (
-                <span className="text-xs text-gray-400">
-                  {poktanList.length} kelompok ditemukan
-                  {userLocation
-                    ? " · diurutkan berdasarkan jarak terdekat"
-                    : ""}
-                </span>
-              )}
-            </div>
-
             {errorMessage && (
               <div
                 role="alert"

@@ -282,7 +282,7 @@ export default function DetailPoktanPage() {
                     aria-label="Foto sebelumnya"
                     className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center hover:bg-white"
                   >
-                    <ChevronLeft className="w-5 h-5 text-gray-700" />
+                    <ChevronLeft className="w-9 h-9 text-gray-700" />
                   </button>
                   <button
                     type="button"
@@ -290,7 +290,7 @@ export default function DetailPoktanPage() {
                     aria-label="Foto berikutnya"
                     className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center hover:bg-white"
                   >
-                    <ChevronRight className="w-5 h-5 text-gray-700" />
+                    <ChevronRight className="w-9 h-9 text-gray-700" />
                   </button>
                 </>
               )}

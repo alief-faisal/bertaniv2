@@ -40,6 +40,14 @@ export default function AdminDashboardPage() {
   const [urutan, setUrutan] = useState<number>(1);
   const [uploadingBanner, setUploadingBanner] = useState<boolean>(false);
 
+  // --- State Form Edit Banner ---
+  const [editingBannerId, setEditingBannerId] = useState<string | null>(null);
+  const [editTargetUrl, setEditTargetUrl] = useState<string>("");
+  const [editUrutan, setEditUrutan] = useState<number>(1);
+  const [editBannerFile, setEditBannerFile] = useState<File | null>(null);
+  const [editOldImageUrl, setEditOldImageUrl] = useState<string>("");
+  const [updatingBanner, setUpdatingBanner] = useState<boolean>(false);
+
   // --- Fetch Data Utama ---
   const fetchData = useCallback(async () => {
     try {
@@ -104,7 +112,7 @@ export default function AdminDashboardPage() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   // --- Aksi Aktivasi / Verifikasi Poktan ---
@@ -181,8 +189,94 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // --- Aksi Edit Banner ---
+  const handleStartEdit = (banner: Banner) => {
+    setEditingBannerId(banner.id);
+    setEditTargetUrl(banner.target_url || "");
+    setEditUrutan(banner.urutan);
+    setEditOldImageUrl(banner.image_url);
+    setEditBannerFile(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingBannerId(null);
+    setEditTargetUrl("");
+    setEditUrutan(1);
+    setEditBannerFile(null);
+    setEditOldImageUrl("");
+  };
+
+  const handleEditFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setEditBannerFile(e.target.files[0]);
+    }
+  };
+
+  const handleUpdateBanner = async (id: string) => {
+    try {
+      setUpdatingBanner(true);
+
+      let newImageUrl = editOldImageUrl;
+
+      // Jika ada file gambar baru yang dipilih, upload dan hapus yang lama
+      if (editBannerFile) {
+        const fileExt = editBannerFile.name.split(".").pop();
+        const fileName = `banner-${Date.now()}.${fileExt}`;
+        const filePath = `banners/${fileName}`;
+
+        // Upload gambar baru
+        const { error: uploadError } = await supabase.storage
+          .from("banners")
+          .upload(filePath, editBannerFile);
+
+        if (uploadError) throw uploadError;
+
+        // Ambil URL publik gambar baru
+        const { data: urlData } = supabase.storage
+          .from("banners")
+          .getPublicUrl(filePath);
+
+        newImageUrl = urlData.publicUrl;
+
+        // Hapus gambar lama dari storage
+        const oldUrlParts = editOldImageUrl.split(
+          "/storage/v1/object/public/banners/",
+        );
+        const oldFilePath = oldUrlParts[1];
+
+        if (oldFilePath) {
+          await supabase.storage.from("banners").remove([oldFilePath]);
+        }
+      }
+
+      // Update data banner di database
+      const { error } = await supabase
+        .from("banners")
+        .update({
+          image_url: newImageUrl,
+          target_url: editTargetUrl || null,
+          urutan: editUrutan,
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      alert("Banner berhasil diperbarui!");
+      handleCancelEdit();
+      fetchData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Gagal memperbarui banner");
+    } finally {
+      setUpdatingBanner(false);
+    }
+  };
+
   // --- Aksi Hapus Banner (Database + Storage Bucket) ---
-  const handleDeleteBanner = async (id: string, imageUrl: string) => {
+  const handleDeleteBanner = async (
+    id: string,
+    imageUrl: string,
+    currentUrutan: number,
+  ) => {
     if (
       !confirm("Apakah Anda yakin ingin menghapus banner ini beserta filenya?")
     )
@@ -213,6 +307,32 @@ export default function AdminDashboardPage() {
         .eq("id", id);
 
       if (dbError) throw dbError;
+
+      // 3. Update urutan banner lainnya yang urutannya lebih besar dari banner yang dihapus
+      // Kurangi 1 pada urutan banner yang ada di atasnya
+      const { error: updateError } = await supabase
+        .from("banners")
+        .update({ urutan: supabase.rpc("decrement_urutan") })
+        .gt("urutan", currentUrutan);
+
+      // Jika RPC tidak tersedia, lakukan manual update
+      if (updateError) {
+        // Ambil semua banner yang urutannya lebih besar
+        const { data: bannersToUpdate } = await supabase
+          .from("banners")
+          .select("id, urutan")
+          .gt("urutan", currentUrutan);
+
+        if (bannersToUpdate && bannersToUpdate.length > 0) {
+          // Update satu per satu
+          for (const banner of bannersToUpdate) {
+            await supabase
+              .from("banners")
+              .update({ urutan: banner.urutan - 1 })
+              .eq("id", banner.id);
+          }
+        }
+      }
 
       alert("Banner dan berkas gambar berhasil dibersihkan!");
       fetchData();
@@ -456,24 +576,113 @@ export default function AdminDashboardPage() {
                           alt="Banner"
                           className="w-full h-32 object-cover bg-gray-100"
                         />
-                        <div className="p-3 bg-gray-50 flex justify-between items-center text-xs border-b border-gray-100">
-                          <span className="font-semibold text-gray-600">
-                            Urutan Tampil: #{b.urutan}
-                          </span>
-                          <span className="text-[10px] text-gray-400 truncate max-w-[150px]">
-                            {b.target_url || "Tidak ada link"}
-                          </span>
-                        </div>
+
+                        {editingBannerId === b.id ? (
+                          // Form Edit Inline
+                          <div className="p-3 bg-blue-50 border-b border-blue-100 space-y-2">
+                            <div>
+                              <label className="block text-[10px] font-semibold text-gray-600 mb-1">
+                                Ganti Gambar Banner (Opsional)
+                              </label>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleEditFileChange}
+                                className="w-full text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-100 file:text-blue-700 cursor-pointer"
+                              />
+                              {editBannerFile && (
+                                <p className="text-[9px] text-blue-600 mt-1">
+                                  ✓ File baru dipilih: {editBannerFile.name}
+                                </p>
+                              )}
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-semibold text-gray-600 mb-1">
+                                Target URL
+                              </label>
+                              <input
+                                type="url"
+                                value={editTargetUrl}
+                                onChange={(e) =>
+                                  setEditTargetUrl(e.target.value)
+                                }
+                                placeholder="https://promo-pertanian.com"
+                                className="w-full px-2 py-1 border border-gray-300 rounded outline-none text-xs focus:border-blue-600"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-semibold text-gray-600 mb-1">
+                                Urutan
+                              </label>
+                              <input
+                                type="number"
+                                min={1}
+                                value={editUrutan}
+                                onChange={(e) =>
+                                  setEditUrutan(Number(e.target.value))
+                                }
+                                className="w-full px-2 py-1 border border-gray-300 rounded outline-none text-xs focus:border-blue-600"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          // Display Info
+                          <div className="p-3 bg-gray-50 flex justify-between items-center text-xs border-b border-gray-100">
+                            <span className="font-semibold text-gray-600">
+                              Urutan Tampil: #{b.urutan}
+                            </span>
+                            <span className="text-[10px] text-gray-400 truncate max-w-37.5">
+                              {b.target_url || "Tidak ada link"}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <div className="p-2 bg-gray-50 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteBanner(b.id, b.image_url)}
-                          className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white text-[11px] font-medium px-3 py-1.5 rounded transition shadow-sm"
-                        >
-                          <HiOutlineTrash size={14} />
-                          <span>Hapus Banner</span>
-                        </button>
+
+                      <div className="p-2 bg-gray-50 flex justify-end gap-2">
+                        {editingBannerId === b.id ? (
+                          // Tombol Simpan & Batal saat mode edit
+                          <>
+                            <button
+                              type="button"
+                              onClick={handleCancelEdit}
+                              disabled={updatingBanner}
+                              className="flex items-center gap-1 bg-gray-500 hover:bg-gray-600 text-white text-[11px] font-medium px-3 py-1.5 rounded transition shadow-sm disabled:opacity-50"
+                            >
+                              <span>Batal</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateBanner(b.id)}
+                              disabled={updatingBanner}
+                              className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium px-3 py-1.5 rounded transition shadow-sm disabled:opacity-50"
+                            >
+                              <span>
+                                {updatingBanner ? "Menyimpan..." : "Simpan"}
+                              </span>
+                            </button>
+                          </>
+                        ) : (
+                          // Tombol Edit & Hapus saat mode normal
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(b)}
+                              className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium px-3 py-1.5 rounded transition shadow-sm"
+                            >
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleDeleteBanner(b.id, b.image_url, b.urutan)
+                              }
+                              className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white text-[11px] font-medium px-3 py-1.5 rounded transition shadow-sm"
+                            >
+                              <HiOutlineTrash size={14} />
+                              <span>Hapus</span>
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
