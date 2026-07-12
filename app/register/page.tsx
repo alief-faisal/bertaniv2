@@ -1,16 +1,45 @@
 "use client";
 
-import React, { useState, FormEvent, ChangeEvent } from "react";
+import React, { useState, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { RegisterPayload, RegisterResponse, RegistrableRole } from "@/types";
 
 const KECAMATAN_LIST = [
-  "Angsana", "Banjar", "Bojong", "Cadasari", "Carita", "Cibaliung",
-  "Cibitung", "Cigeulis", "Cikedal", "Cikeusik", "Cimanggu", "Cimanuk",
-  "Cipeucang", "Cisata", "Jiput", "Kaduhejo", "Karang Tanjung", "Koroncong",
-  "Labuan", "Majasari", "Mandalawangi", "Mekarjaya", "Menes", "Munjul",
-  "Pagelaran", "Pandeglang", "Panimbang", "Patia", "Picung", "Pulosari",
-  "Saketi", "Sindangresmi", "Sobang", "Sukaresmi", "Sumur",
+  "Angsana",
+  "Banjar",
+  "Bojong",
+  "Cadasari",
+  "Carita",
+  "Cibaliung",
+  "Cibitung",
+  "Cigeulis",
+  "Cikedal",
+  "Cikeusik",
+  "Cimanggu",
+  "Cimanuk",
+  "Cipeucang",
+  "Cisata",
+  "Jiput",
+  "Kaduhejo",
+  "Karang Tanjung",
+  "Koroncong",
+  "Labuan",
+  "Majasari",
+  "Mandalawangi",
+  "Mekarjaya",
+  "Menes",
+  "Munjul",
+  "Pagelaran",
+  "Pandeglang",
+  "Panimbang",
+  "Patia",
+  "Picung",
+  "Pulosari",
+  "Saketi",
+  "Sindangresmi",
+  "Sobang",
+  "Sukaresmi",
+  "Sumur",
 ];
 
 const MAX_BANNER_MB = 5;
@@ -44,9 +73,11 @@ export default function RegisterPage() {
   const [inputNamaAnggota, setInputNamaAnggota] = useState<string>("");
   const [jumlahAnggota, setJumlahAnggota] = useState<number>(0);
   const [hargaSewa, setHargaSewa] = useState<number>(0);
-const [latitude, setLatitude] = useState<number | string>(-6.3112);
-const [longitude, setLongitude] = useState<number | string>(105.8385);
+  const [diskonPersen, setDiskonPersen] = useState<number>(0);
+  const [latitude, setLatitude] = useState<number | string>(-6.3112);
+  const [longitude, setLongitude] = useState<number | string>(105.8385);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
   const [locLoading, setLocLoading] = useState<boolean>(false);
 
   const handleAnggotaInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
@@ -81,7 +112,9 @@ const [longitude, setLongitude] = useState<number | string>(105.8385);
       },
       (error) => {
         console.error(error);
-        setFormError("Gagal mendeteksi lokasi. Pastikan izin akses lokasi aktif.");
+        setFormError(
+          "Gagal mendeteksi lokasi. Pastikan izin akses lokasi aktif.",
+        );
         setLocLoading(false);
       },
       { enableHighAccuracy: true },
@@ -94,7 +127,9 @@ const [longitude, setLongitude] = useState<number | string>(105.8385);
 
     const ext = file.name.split(".").pop()?.toLowerCase() || "";
     if (!ALLOWED_IMAGE_EXT.includes(ext)) {
-      setFormError("Format gambar tidak didukung. Gunakan JPG, PNG, atau WEBP.");
+      setFormError(
+        "Format gambar tidak didukung. Gunakan JPG, PNG, atau WEBP.",
+      );
       e.target.value = "";
       setImageFile(null);
       return;
@@ -110,7 +145,47 @@ const [longitude, setLongitude] = useState<number | string>(105.8385);
     setImageFile(file);
   };
 
-  const handleRegister = async (e: FormEvent<HTMLFormElement>) => {
+  const handleGalleryChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // Validasi setiap file
+    for (const file of files) {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "";
+      if (!ALLOWED_IMAGE_EXT.includes(ext)) {
+        setFormError(
+          "Format gambar tidak didukung. Gunakan JPG, PNG, atau WEBP.",
+        );
+        e.target.value = "";
+        return;
+      }
+      if (file.size > MAX_BANNER_MB * 1024 * 1024) {
+        setFormError(`Ukuran gambar maksimal ${MAX_BANNER_MB}MB.`);
+        e.target.value = "";
+        return;
+      }
+    }
+
+    // Batasi maksimal 5 gambar
+    if (galleryFiles.length + files.length > 5) {
+      setFormError("Maksimal 5 gambar galeri.");
+      return;
+    }
+
+    setFormError("");
+    setGalleryFiles([...galleryFiles, ...files]);
+  };
+
+  const removeGalleryImage = (index: number) => {
+    setGalleryFiles(galleryFiles.filter((_, i) => i !== index));
+  };
+
+  const removeBannerImage = () => {
+    setImageFile(null);
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
+  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormError("");
 
@@ -128,10 +203,20 @@ const [longitude, setLongitude] = useState<number | string>(105.8385);
     try {
       let bannerBase64: string | undefined;
       let bannerFileName: string | undefined;
+      let galleryBase64: string[] | undefined;
+      let galleryFileNames: string[] | undefined;
 
       if (selectedRole === "poktan" && imageFile) {
         bannerBase64 = await fileToBase64(imageFile);
         bannerFileName = imageFile.name;
+      }
+
+      // Process gallery images
+      if (selectedRole === "poktan" && galleryFiles.length > 0) {
+        galleryBase64 = await Promise.all(
+          galleryFiles.map((file) => fileToBase64(file)),
+        );
+        galleryFileNames = galleryFiles.map((file) => file.name);
       }
 
       const arrayNamaBersih = inputNamaAnggota
@@ -142,7 +227,6 @@ const [longitude, setLongitude] = useState<number | string>(105.8385);
       const namaKetua =
         arrayNamaBersih.length > 0 ? arrayNamaBersih[0] : fullName;
 
-      // Di dalam file Frontend Anda, cari bagian payload sebelum fetch:
       const payload: RegisterPayload = {
         email,
         password,
@@ -154,11 +238,13 @@ const [longitude, setLongitude] = useState<number | string>(105.8385);
         daftarAnggota: arrayNamaBersih.join(", "),
         jumlahAnggota,
         hargaSewa,
-        // Pastikan mengubah koma jadi titik jika pengguna mengetik koma secara manual
+        diskonPersen,
         latitude: latitude ? latitude.toString().replace(",", ".") : "0",
         longitude: longitude ? longitude.toString().replace(",", ".") : "0",
         bannerBase64,
         bannerFileName,
+        galleryBase64,
+        galleryFileNames,
       };
 
       const response = await fetch("/api/register-poktan", {
@@ -409,6 +495,26 @@ const [longitude, setLongitude] = useState<number | string>(105.8385);
             </div>
 
             <div>
+              <label
+                htmlFor="diskonPersen"
+                className="block text-xs font-semibold text-gray-600 mb-1"
+              >
+                Diskon (%) - Opsional
+              </label>
+              <input
+                id="diskonPersen"
+                name="diskonPersen"
+                type="number"
+                min={0}
+                max={100}
+                value={diskonPersen}
+                onChange={(e) => setDiskonPersen(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none text-sm focus:border-green-600"
+                placeholder="Contoh: 10 untuk diskon 10%"
+              />
+            </div>
+
+            <div>
               <div className="flex justify-between items-center mb-1">
                 <span className="block text-xs font-semibold text-gray-600">
                   Koordinat Pemetaan Lahan
@@ -477,6 +583,89 @@ const [longitude, setLongitude] = useState<number | string>(105.8385);
                 onChange={handleFileChange}
                 className="w-full text-xs text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer"
               />
+              {imageFile && (
+                <div className="mt-3 relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={URL.createObjectURL(imageFile)}
+                    alt="Preview Banner"
+                    className="w-full h-48 object-cover rounded-md border border-gray-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={removeBannerImage}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 transition"
+                    aria-label="Hapus banner"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label
+                htmlFor="galleryFiles"
+                className="block text-xs font-semibold text-gray-600 mb-1"
+              >
+                Galeri Foto Tambahan (Maksimal 5 foto, JPG/PNG/WEBP)
+              </label>
+              <input
+                id="galleryFiles"
+                name="galleryFiles"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                onChange={handleGalleryChange}
+                className="w-full text-xs text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+              />
+              {galleryFiles.length > 0 && (
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {galleryFiles.map((file, index) => (
+                    // eslint-disable-next-line react/no-array-index-key
+                    <div key={index} className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={`Preview ${index + 1}`}
+                        className="w-full h-24 object-cover rounded-md border border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeGalleryImage(index)}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition"
+                        aria-label={`Hapus gambar ${index + 1}`}
+                      >
+                        <svg
+                          className="w-3 h-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </fieldset>
         )}

@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import type { RegisterPayload, RegistrableRole } from "@/types";
+import type { RegistrableRole } from "@/types";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -81,7 +81,6 @@ export async function POST(request: Request) {
   }
 
   let createdUserId: string | null = null;
-  let uploadedFilePath: string | null = null;
 
   try {
     const body = await request.json();
@@ -97,8 +96,11 @@ export async function POST(request: Request) {
       daftarAnggota,
       jumlahAnggota,
       hargaSewa,
+      diskonPersen,
       bannerBase64,
       bannerFileName,
+      galleryBase64,
+      galleryFileNames,
     } = body;
 
     // ---------- 1. VALIDASI DASAR (berlaku untuk semua role) ----------
@@ -122,7 +124,7 @@ export async function POST(request: Request) {
     let parsedLatitude: number = 0;
     let parsedLongitude: number = 0;
 
-// ---------- 2. VALIDASI KHUSUS POKTAN ----------
+    // ---------- 2. VALIDASI KHUSUS POKTAN ----------
     if (role === "poktan") {
       if (!namaKelompok || namaKelompok.trim().length < 3) {
         return badRequest(
@@ -149,8 +151,12 @@ export async function POST(request: Request) {
 
       // === BAGIAN KOORDINAT YANG DIGANTI & DIPERBAIKI ===
       // 1. Ambil data mentah, ubah ke string, dan pastikan tanda koma ditukar menjadi titik desimal
-      const rawLat = String(body.latitude ?? "").trim().replace(",", ".");
-      const rawLng = String(body.longitude ?? "").trim().replace(",", ".");
+      const rawLat = String(body.latitude ?? "")
+        .trim()
+        .replace(",", ".");
+      const rawLng = String(body.longitude ?? "")
+        .trim()
+        .replace(",", ".");
 
       // 2. Konversi ke tipe data angka murni
       parsedLatitude = Number(rawLat);
@@ -158,19 +164,31 @@ export async function POST(request: Request) {
 
       // LOG UNTUK DEBUGGING (Cek terminal VS Code Anda jika error berlanjut)
       console.log("--- DEBUG KOORDINAT ---");
-      console.log("Mentah dari client -> Lat:", body.latitude, " | Lng:", body.longitude);
-      console.log("Hasil Parsing Angka -> Lat:", parsedLatitude, " | Lng:", parsedLongitude);
+      console.log(
+        "Mentah dari client -> Lat:",
+        body.latitude,
+        " | Lng:",
+        body.longitude,
+      );
+      console.log(
+        "Hasil Parsing Angka -> Lat:",
+        parsedLatitude,
+        " | Lng:",
+        parsedLongitude,
+      );
 
       // 3. Validasi jika kolom kosong atau bukan angka desimal yang valid
       if (
-        rawLat === "" || 
+        rawLat === "" ||
         rawLng === "" ||
-        isNaN(parsedLatitude) || 
-        isNaN(parsedLongitude) ||
+        Number.isNaN(parsedLatitude) ||
+        Number.isNaN(parsedLongitude) ||
         !Number.isFinite(parsedLatitude) ||
         !Number.isFinite(parsedLongitude)
       ) {
-        return badRequest("Koordinat lokasi harus diisi dengan angka desimal (gunakan titik, misal: -6.3112).");
+        return badRequest(
+          "Koordinat lokasi harus diisi dengan angka desimal (gunakan titik, misal: -6.3112).",
+        );
       }
 
       // 4. Validasi batas wilayah Indonesia
@@ -180,22 +198,23 @@ export async function POST(request: Request) {
         parsedLongitude < 95 ||
         parsedLongitude > 141
       ) {
-        return badRequest(`Koordinat (${parsedLatitude}, ${parsedLongitude}) berada di luar jangkauan wilayah Indonesia.`);
+        return badRequest(
+          `Koordinat (${parsedLatitude}, ${parsedLongitude}) berada di luar jangkauan wilayah Indonesia.`,
+        );
       }
       // === END BAGIAN YANG DIGANTI ===
 
       if (!bannerBase64 || !bannerFileName) {
         return badRequest("Foto banner kelompok wajib diunggah.");
       }
-    
 
       // --- PERBAIKAN DI SINI: Paksa konversi string dari input manual ke tipe Number murni ---
       parsedLatitude = Number(body.latitude);
       parsedLongitude = Number(body.longitude);
 
       if (
-        isNaN(parsedLatitude) ||
-        isNaN(parsedLongitude) ||
+        Number.isNaN(parsedLatitude) ||
+        Number.isNaN(parsedLongitude) ||
         !Number.isFinite(parsedLatitude) ||
         !Number.isFinite(parsedLongitude) ||
         parsedLatitude < -11 ||
@@ -240,6 +259,8 @@ export async function POST(request: Request) {
 
     // ---------- 4. UPLOAD BANNER (Server Side Storage) ----------
     let bannerUrl: string | null = null;
+    const galleryUrls: string[] = [];
+    const uploadedFilePaths: string[] = [];
 
     if (role === "poktan" && bannerBase64 && bannerFileName) {
       const fileExt = (bannerFileName.split(".").pop() || "").toLowerCase();
@@ -277,13 +298,55 @@ export async function POST(request: Request) {
         );
       }
 
-      uploadedFilePath = filePath;
+      uploadedFilePaths.push(filePath);
 
       const { data: publicUrlData } = supabaseAdmin.storage
         .from("poktan-media")
         .getPublicUrl(filePath);
 
       bannerUrl = publicUrlData.publicUrl;
+    }
+
+    // Upload gallery images
+    if (
+      role === "poktan" &&
+      galleryBase64 &&
+      galleryFileNames &&
+      Array.isArray(galleryBase64)
+    ) {
+      for (let i = 0; i < galleryBase64.length; i++) {
+        const base64 = galleryBase64[i];
+        const fileName = galleryFileNames[i];
+
+        if (!base64 || !fileName) continue;
+
+        const fileExt = (fileName.split(".").pop() || "").toLowerCase();
+        const contentType = ALLOWED_IMAGE_TYPES[fileExt];
+
+        if (!contentType) continue;
+
+        const base64Payload = base64.includes(",")
+          ? base64.split(",")[1]
+          : base64;
+        const buffer = Buffer.from(base64Payload, "base64");
+
+        if (buffer.byteLength === 0 || buffer.byteLength > MAX_BANNER_BYTES)
+          continue;
+
+        const filePath = `gallery/${user.id}-${Date.now()}-${i}.${fileExt}`;
+
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from("poktan-media")
+          .upload(filePath, buffer, { contentType, upsert: true });
+
+        if (!uploadError) {
+          uploadedFilePaths.push(filePath);
+          const { data: publicUrlData } = supabaseAdmin.storage
+            .from("poktan-media")
+            .getPublicUrl(filePath);
+          galleryUrls.push(publicUrlData.publicUrl);
+        }
+      }
     }
 
     // ---------- 5. INSERT DATA PROFIL POKTAN ----------
@@ -299,20 +362,22 @@ export async function POST(request: Request) {
             daftar_anggota: daftarAnggota || null,
             jumlah_anggota: jumlahAnggota,
             harga_sewa: hargaSewa,
-            diskon_persen: 0,
+            diskon_persen: diskonPersen || 0,
             banner_url: bannerUrl,
-            latitude: parsedLatitude, // Gunakan nilai angka yang sudah dikonversi murni
-            longitude: parsedLongitude, // Gunakan nilai angka yang sudah dikonversi murni
+            gallery_urls: galleryUrls.length > 0 ? galleryUrls : null,
+            latitude: parsedLatitude,
+            longitude: parsedLongitude,
             is_active: false,
           },
         ]);
 
       if (profileError) {
         console.error("❌ Database Insert Error:", profileError.message);
-        if (uploadedFilePath) {
+        // Hapus semua file yang sudah diupload
+        if (uploadedFilePaths.length > 0) {
           await supabaseAdmin.storage
             .from("poktan-media")
-            .remove([uploadedFilePath]);
+            .remove(uploadedFilePaths);
         }
         await supabaseAdmin.auth.admin.deleteUser(user.id);
         return NextResponse.json(

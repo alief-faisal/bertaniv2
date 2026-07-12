@@ -115,11 +115,11 @@ export default function PoktanCard({
 
           {/* Bagian Harga (Di bawah & Selalu Simetris secara Vertikal) */}
           <div className="pt-4 border-t border-gray-100 flex items-end justify-between">
-            <div className="flex flex-col">
+            <div className="flex flex-col w-full">
               <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
                 Tarif Sewa / Jasa
               </span>
-              <div className="flex items-baseline gap-1.5 mt-0.5">
+              <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">
                 <span className="text-lg font-bold text-green-700 whitespace-nowrap">
                   Rp {formatRupiah(hargaDiskon)}
                 </span>
@@ -127,18 +127,19 @@ export default function PoktanCard({
                   / Hari
                 </span>
               </div>
+
+              {/* Tempat Baru: Harga Coret & Badge Diskon Berdampingan */}
               {diskonPersen > 0 && (
-                <span className="text-xs text-red-400 line-through font-normal mt-0.5">
-                  Rp {formatRupiah(hargaSewa)}
-                </span>
+                <div className="mt-1 flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-gray-500 font-medium relative inline-block before:content-[''] before:absolute before:left-0 before:right-0 before:top-1/2 before:h-[1.5px] before:bg-red-500 before:-translate-y-1/2 before:-rotate-3">
+                    Rp {formatRupiah(hargaSewa)}
+                  </span>
+                  <span className="bg-red-50 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded header-badge">
+                    Diskon {diskonPersen}%
+                  </span>
+                </div>
               )}
             </div>
-
-            {diskonPersen > 0 && (
-              <span className="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-1 rounded header-badge self-center">
-                Diskon {diskonPersen}%
-              </span>
-            )}
           </div>
         </div>
       </article>

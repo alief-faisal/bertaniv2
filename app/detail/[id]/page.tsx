@@ -17,6 +17,7 @@ import { supabase } from "@/utils/supabase";
 import Navbar from "@/components/Navbar";
 import { PoktanProfile } from "@/types";
 import { calculateDistanceKm } from "@/utils/distance";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1589923188900-85dae523342b?w=800";
@@ -35,6 +36,9 @@ export default function DetailPoktanPage() {
   const [activeImage, setActiveImage] = useState<number>(0);
   const [isFavorite, setIsFavorite] = useState<boolean>(false);
   const [distanceKm, setDistanceKm] = useState<number | undefined>(undefined);
+
+  // Ambil informasi user yang sedang login
+  const { role } = useCurrentUser();
 
   const fetchDetail = useCallback(async () => {
     if (!id) return;
@@ -64,6 +68,7 @@ export default function DetailPoktanPage() {
           created_at: data.created_at,
           // Field opsional, aman kalau kolomnya belum ada / masih kosong.
           nama_ketua: data.nama_ketua ?? undefined,
+          daftar_anggota: data.daftar_anggota ?? undefined,
           gallery_urls: Array.isArray(data.gallery_urls)
             ? data.gallery_urls
             : undefined,
@@ -197,10 +202,18 @@ export default function DetailPoktanPage() {
     );
   }
 
-  const gallery =
-    poktan.gallery_urls && poktan.gallery_urls.length > 0
-      ? poktan.gallery_urls
-      : [poktan.banner_url || FALLBACK_IMAGE];
+  // Gabungkan banner dengan gallery (banner selalu di urutan pertama)
+  const gallery: string[] = [];
+  if (poktan.banner_url) {
+    gallery.push(poktan.banner_url);
+  } else {
+    gallery.push(FALLBACK_IMAGE);
+  }
+
+  // Tambahkan gambar gallery jika ada
+  if (poktan.gallery_urls && poktan.gallery_urls.length > 0) {
+    gallery.push(...poktan.gallery_urls);
+  }
 
   const hargaSewa = poktan.harga_sewa;
   const diskonPersen = Number(poktan.diskon_persen) || 0;
@@ -212,10 +225,13 @@ export default function DetailPoktanPage() {
   const goNext = () =>
     setActiveImage((i) => (i === gallery.length - 1 ? 0 : i + 1));
 
+  // Cek apakah user bisa melakukan order/chat (hanya role 'user' yang boleh)
+  const canInteract = role === "user";
+
   return (
     <>
       <Navbar onFilterChange={() => {}} />
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-4 py-8">
         {/* BREADCRUMB */}
         <nav aria-label="breadcrumb" className="text-xs text-gray-500 mb-4">
           <ol className="flex items-center gap-1.5 flex-wrap">
@@ -363,6 +379,41 @@ export default function DetailPoktanPage() {
                   </dd>
                 </div>
               </dl>
+
+              {/* DAFTAR ANGGOTA */}
+              {poktan.daftar_anggota && (
+                <div className="border-t border-gray-100 pt-5 mt-5">
+                  <h2 className="text-base font-bold text-gray-800 mb-3">
+                    Daftar Anggota
+                  </h2>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <ol className="space-y-2">
+                      {poktan.daftar_anggota
+                        .split(",")
+                        .map((nama) => nama.trim())
+                        .filter((nama) => nama !== "")
+                        .map((nama, index) => (
+                          <li
+                            key={`${nama}-${index}`}
+                            className="flex items-start gap-2 text-sm"
+                          >
+                            <span className="inline-flex items-center justify-center min-w-6 h-6 bg-[#008000] text-white text-xs font-semibold rounded">
+                              {index + 1}
+                            </span>
+                            <span className="text-gray-700 leading-6">
+                              {nama}
+                              {index === 0 && (
+                                <span className="ml-2 text-xs text-[#008000] font-semibold">
+                                  (Ketua)
+                                </span>
+                              )}
+                            </span>
+                          </li>
+                        ))}
+                    </ol>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -392,7 +443,17 @@ export default function DetailPoktanPage() {
 
               <button
                 type="button"
-                className="w-full mt-4 bg-[#008000] hover:bg-green-700 transition text-white font-semibold py-3 rounded-[10px] flex items-center justify-center gap-2"
+                disabled={!canInteract}
+                title={
+                  !canInteract
+                    ? "Hanya user yang dapat melakukan order"
+                    : "Klik untuk order"
+                }
+                className={`w-full mt-4 font-semibold py-3 rounded-[10px] flex items-center justify-center gap-2 transition ${
+                  canInteract
+                    ? "bg-[#008000] hover:bg-green-700 text-white cursor-pointer"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
               >
                 Order Sekarang
               </button>
@@ -405,7 +466,17 @@ export default function DetailPoktanPage() {
               </p>
               <button
                 type="button"
-                className="w-full border border-[#008000] text-[#008000] font-semibold py-2.5 rounded-[10px] flex items-center justify-center gap-2 hover:bg-green-50 transition"
+                disabled={!canInteract}
+                title={
+                  !canInteract
+                    ? "Hanya user yang dapat melakukan chat"
+                    : "Klik untuk chat"
+                }
+                className={`w-full font-semibold py-2.5 rounded-[10px] flex items-center justify-center gap-2 transition ${
+                  canInteract
+                    ? "border border-[#008000] text-[#008000] hover:bg-green-50 cursor-pointer"
+                    : "border border-gray-300 text-gray-400 cursor-not-allowed"
+                }`}
               >
                 <MessageCircle className="w-4 h-4" />
                 Chat

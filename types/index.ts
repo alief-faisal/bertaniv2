@@ -101,12 +101,16 @@ export interface RegisterPayload {
   daftarAnggota?: string;
   jumlahAnggota?: number;
   hargaSewa?: number;
-  latitude?: number;
-  longitude?: number;
+  diskonPersen?: number;
+  latitude?: string;
+  longitude?: string;
   // Banner dikirim sebagai base64 supaya upload dilakukan di SERVER
   // (service role), bukan dari browser — menghindari RLS storage.
   bannerBase64?: string;
   bannerFileName?: string;
+  // Multiple gallery images
+  galleryBase64?: string[];
+  galleryFileNames?: string[];
 }
 
 export interface RegisterResponse {
