@@ -1,8 +1,9 @@
 // 📁 Simpan sebagai: components/Navbar.tsx
 "use client";
 
-import React, { useState, useEffect, MouseEvent, FormEvent } from "react";
+import React, { useState, useEffect, MouseEvent } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Search, ChevronDown, LayoutDashboard, Receipt } from "lucide-react";
 import { supabase } from "@/utils/supabase";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -74,6 +75,9 @@ export default function Navbar({
   const [favoriteCount, setFavoriteCount] = useState<number>(0);
   const [orderCount, setOrderCount] = useState<number>(0);
 
+  // State untuk menangani double-click pada logo
+  const [lastClickTime, setLastClickTime] = useState<number>(0);
+
   // Load Font Awesome CSS
   useEffect(() => {
     if (!document.querySelector('link[href*="font-awesome"]')) {
@@ -87,8 +91,6 @@ export default function Navbar({
 
   useEffect(() => {
     if (!userId) {
-      setFavoriteCount(0);
-      setOrderCount(0);
       return;
     }
 
@@ -201,7 +203,7 @@ export default function Navbar({
     onFilterChange(filterValue, searchQuery);
   };
 
-  const handleSearchSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const rawLoc = selectedLoc.replace("Kec. ", "");
     const filterValue =
@@ -214,18 +216,41 @@ export default function Navbar({
     window.location.reload();
   };
 
+  const handleLogoClick = () => {
+    const currentTime = Date.now();
+    const timeDiff = currentTime - lastClickTime;
+
+    if (timeDiff < 500) {
+      // Double-click terdeteksi (kurang dari 500ms)
+      window.location.reload();
+    } else {
+      // Single-click - navigate ke beranda
+      window.location.href = "/";
+    }
+
+    setLastClickTime(currentTime);
+  };
+
   return (
     <header className="w-full bg-[#008000] text-white sticky top-0 z-[999] shadow-md">
       <div className="max-w-7xl mx-auto px-4 py-5 flex items-center justify-between gap-3 md:gap-4">
         {/* LOGO */}
-        <div className="hidden md:block flex-shrink-0">
-          <Link href="/">
-            <img
+        <div className="hidden md:block shrink-0">
+          <button
+            onClick={handleLogoClick}
+            className="cursor-pointer bg-transparent border-0 p-0"
+            type="button"
+            aria-label="Kembali ke beranda (klik 2 kali untuk refresh)"
+          >
+            <Image
               src="/logo/logo.png"
               alt="Bertani Logo"
-              className="h-9 object-contain cursor-pointer"
+              width={120}
+              height={36}
+              className="h-9 w-auto object-contain"
+              priority
             />
-          </Link>
+          </button>
         </div>
 
         {/* SEARCHBAR & FILTER */}
@@ -246,14 +271,14 @@ export default function Navbar({
               className="flex items-center gap-2 px-2.5 md:px-4 h-full text-xs md:text-sm font-medium transition whitespace-nowrap text-gray-700 rounded-l-md"
             >
               <i
-                className="fa-solid fa-location-dot text-gray-700 text-base flex-shrink-0 w-5 text-center"
+                className="fa-solid fa-location-dot text-gray-700 text-base shrink-0 w-5 text-center"
                 aria-hidden="true"
               ></i>
               <span className="max-w-[95px] md:max-w-[150px] truncate">
                 {selectedLoc}
               </span>
               <ChevronDown
-                className={`w-5 h-5 text-gray-600 transition-transform duration-[700ms] ease-in-out ${isOpenDropdown ? "rotate-180" : "rotate-0"}`}
+                className={`w-5 h-5 text-gray-600 transition-transform duration-700 ease-in-out ${isOpenDropdown ? "rotate-180" : "rotate-0"}`}
               />
             </button>
 
@@ -289,7 +314,7 @@ export default function Navbar({
                   role="option"
                   aria-selected={selectedLoc === "Semua Wilayah"}
                   onClick={(e) => handleLocationSelect(e, "Semua Wilayah")}
-                  className="w-full text-left px-4 py-2 text-xs md:text-sm text-gray-600 hover:bg-green-50 font-semibold text-[#008000] border-b border-gray-100"
+                  className="w-full text-left px-4 py-2 text-xs md:text-sm hover:bg-green-50 font-semibold text-[#008000] border-b border-gray-100"
                 >
                   Semua Wilayah
                 </button>
@@ -332,7 +357,7 @@ export default function Navbar({
         </form>
 
         {/* RIGHT SIDE ACTIONS */}
-        <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+        <div className="flex items-center gap-2 md:gap-4 shrink-0">
           {userRole !== "guest" && (
             <Link
               href="/user/favorit"

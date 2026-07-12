@@ -109,13 +109,24 @@ export default function PoktanCard({
     >
       <article className="flex flex-col sm:flex-row md:flex-col bg-white border border-gray-200 rounded-[10px] overflow-hidden shadow-sm transition h-full">
         {/* Bagian Foto (Simetris & Fixed Height di Desktop) */}
-        <div className="relative w-full sm:w-56 md:w-full h-48 md:h-52 shrink-0 bg-gray-100">
-          <img
-            src={allImages[currentImageIndex]}
-            alt={`Banner ${data.nama_kelompok}`}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
+        <div className="relative w-full sm:w-56 md:w-full h-48 md:h-52 shrink-0 overflow-hidden">
+          {allImages.map((src, i) => {
+            const getTransitionClass = () => {
+              if (i === currentImageIndex) return "translate-x-0";
+              if (i < currentImageIndex) return "-translate-x-full";
+              return "translate-x-full";
+            };
+
+            return (
+              <img
+                key={`${data.id}-gallery-${i}`}
+                src={src}
+                alt={`Foto ${data.nama_kelompok} ${i + 1} dari ${allImages.length}`}
+                className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-in-out ${getTransitionClass()}`}
+                loading="lazy"
+              />
+            );
+          })}
 
           {hasDistance && (
             <span className="absolute top-0 left-0 flex items-center gap-1 bg-[#008000] text-white font-semibold text-[10px] px-2.5 py-1.5 rounded-br-xl shadow-sm z-10">

@@ -1,12 +1,7 @@
 "use client";
 
-import React, {
-  useState,
-  useEffect,
-  ChangeEvent,
-  FormEvent,
-  useCallback,
-} from "react";
+import React, { useState, useEffect, ChangeEvent } from "react";
+import Image from "next/image";
 import { supabase } from "@/utils/supabase";
 import { Banner, PoktanProfile } from "@/types";
 import {
@@ -49,71 +44,83 @@ export default function AdminDashboardPage() {
   const [updatingBanner, setUpdatingBanner] = useState<boolean>(false);
 
   // --- Fetch Data Utama ---
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      // 1. Ambil data banners
-      const { data: bannerData, error: bannerError } = await supabase
-        .from("banners")
-        .select("*")
-        .order("urutan", { ascending: true });
-      if (bannerError) throw bannerError;
-
-      // 2. Ambil data poktan
-      const { data: poktanData, error: poktanError } = await supabase
-        .from("poktan_profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (poktanError) throw poktanError;
-
-      // Masing-masing di-mapping agar tipe data numerik sesuai
-      const mappedBanners: Banner[] = (bannerData || []).map((b) => ({
-        id: b.id,
-        image_url: b.image_url,
-        target_url: b.target_url,
-        urutan: Number(b.urutan),
-        created_at: b.created_at,
-      }));
-
-      const mappedPoktan: PoktanProfile[] = (poktanData || []).map((p) => ({
-        id: p.id,
-        nama_kelompok: p.nama_kelompok,
-        kecamatan: p.kecamatan,
-        jumlah_anggota: Number(p.jumlah_anggota),
-        harga_sewa: Number(p.harga_sewa),
-        diskon_persen: Number(p.diskon_persen),
-        banner_url: p.banner_url || "",
-        latitude: Number(p.latitude),
-        longitude: Number(p.longitude),
-        is_active: p.is_active,
-        created_at: p.created_at,
-      }));
-
-      setBanners(mappedBanners);
-      setPoktanList(mappedPoktan);
-
-      // 3. Kalkulasi Statistik Persentase Poktan Aktif
-      const totalP = mappedPoktan.length;
-      const activeP = mappedPoktan.filter((p) => p.is_active).length;
-      const percent = totalP > 0 ? Math.round((activeP / totalP) * 100) : 0;
-
-      setStats({
-        totalPoktan: totalP,
-        activePoktan: activeP,
-        percentageActive: percent,
-        totalBanners: mappedBanners.length,
-      });
-    } catch (err) {
-      console.error("Gagal memuat data admin:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
+    let cancelled = false;
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        // 1. Ambil data banners
+        const { data: bannerData, error: bannerError } = await supabase
+          .from("banners")
+          .select("*")
+          .order("urutan", { ascending: true });
+        if (bannerError) throw bannerError;
+
+        // 2. Ambil data poktan
+        const { data: poktanData, error: poktanError } = await supabase
+          .from("poktan_profiles")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (poktanError) throw poktanError;
+
+        if (cancelled) return;
+
+        // Masing-masing di-mapping agar tipe data numerik sesuai
+        const mappedBanners: Banner[] = (bannerData || []).map((b) => ({
+          id: b.id,
+          image_url: b.image_url,
+          target_url: b.target_url,
+          urutan: Number(b.urutan),
+          created_at: b.created_at,
+        }));
+
+        const mappedPoktan: PoktanProfile[] = (poktanData || []).map((p) => ({
+          id: p.id,
+          nama_kelompok: p.nama_kelompok,
+          kecamatan: p.kecamatan,
+          jumlah_anggota: Number(p.jumlah_anggota),
+          harga_sewa: Number(p.harga_sewa),
+          diskon_persen: Number(p.diskon_persen),
+          banner_url: p.banner_url || "",
+          latitude: Number(p.latitude),
+          longitude: Number(p.longitude),
+          is_active: p.is_active,
+          created_at: p.created_at,
+        }));
+
+        setBanners(mappedBanners);
+        setPoktanList(mappedPoktan);
+
+        // 3. Kalkulasi Statistik Persentase Poktan Aktif
+        const totalP = mappedPoktan.length;
+        const activeP = mappedPoktan.filter((p) => p.is_active).length;
+        const percent = totalP > 0 ? Math.round((activeP / totalP) * 100) : 0;
+
+        setStats({
+          totalPoktan: totalP,
+          activePoktan: activeP,
+          percentageActive: percent,
+          totalBanners: mappedBanners.length,
+        });
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Gagal memuat data admin:", err);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // --- Aksi Aktivasi / Verifikasi Poktan ---
   const handleTogglePoktanActive = async (
@@ -128,7 +135,7 @@ export default function AdminDashboardPage() {
 
       if (error) throw error;
       alert(`Status Kelompok Tani berhasil diubah!`);
-      fetchData();
+      window.location.reload();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Gagal mengubah status");
     }
@@ -141,7 +148,9 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleAddBanner = async (e: FormEvent<HTMLFormElement>) => {
+  const handleAddBanner = async (
+    e: React.FormEvent<HTMLFormElement>,
+  ): Promise<void> => {
     e.preventDefault();
     if (!bannerFile) {
       alert("Silakan pilih file gambar banner terlebih dahulu.");
@@ -151,7 +160,8 @@ export default function AdminDashboardPage() {
     try {
       setUploadingBanner(true);
       const fileExt = bannerFile.name.split(".").pop();
-      const fileName = `banner-${Date.now()}.${fileExt}`;
+      const timestamp = Date.now();
+      const fileName = `banner-${timestamp}.${fileExt}`;
       const filePath = `banners/${fileName}`;
 
       // Upload berkas gambar banner ke storage bucket 'banners'
@@ -181,7 +191,7 @@ export default function AdminDashboardPage() {
       setBannerFile(null);
       setTargetUrl("");
       setUrutan((prev) => prev + 1);
-      fetchData();
+      window.location.reload();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Gagal mengunggah banner");
     } finally {
@@ -221,7 +231,8 @@ export default function AdminDashboardPage() {
       // Jika ada file gambar baru yang dipilih, upload dan hapus yang lama
       if (editBannerFile) {
         const fileExt = editBannerFile.name.split(".").pop();
-        const fileName = `banner-${Date.now()}.${fileExt}`;
+        const timestamp = Date.now();
+        const fileName = `banner-${timestamp}.${fileExt}`;
         const filePath = `banners/${fileName}`;
 
         // Upload gambar baru
@@ -263,7 +274,7 @@ export default function AdminDashboardPage() {
 
       alert("Banner berhasil diperbarui!");
       handleCancelEdit();
-      fetchData();
+      window.location.reload();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Gagal memperbarui banner");
     } finally {
@@ -335,7 +346,7 @@ export default function AdminDashboardPage() {
       }
 
       alert("Banner dan berkas gambar berhasil dibersihkan!");
-      fetchData();
+      window.location.reload();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Gagal menghapus banner");
     }
@@ -506,10 +517,14 @@ export default function AdminDashboardPage() {
               </h3>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                <label
+                  htmlFor="banner-file-input"
+                  className="block text-xs font-semibold text-gray-600 mb-1"
+                >
                   File Gambar Banner
                 </label>
                 <input
+                  id="banner-file-input"
                   type="file"
                   accept="image/*"
                   required
@@ -519,10 +534,14 @@ export default function AdminDashboardPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                <label
+                  htmlFor="banner-target-url"
+                  className="block text-xs font-semibold text-gray-600 mb-1"
+                >
                   Target URL Pengalihan (Opsional)
                 </label>
                 <input
+                  id="banner-target-url"
                   type="url"
                   value={targetUrl}
                   onChange={(e) => setTargetUrl(e.target.value)}
@@ -532,10 +551,14 @@ export default function AdminDashboardPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                <label
+                  htmlFor="banner-urutan"
+                  className="block text-xs font-semibold text-gray-600 mb-1"
+                >
                   Urutan Tampilan Carousel
                 </label>
                 <input
+                  id="banner-urutan"
                   type="number"
                   min={1}
                   required
@@ -571,20 +594,28 @@ export default function AdminDashboardPage() {
                       className="bg-white rounded border border-gray-200 overflow-hidden shadow-sm flex flex-col justify-between"
                     >
                       <div>
-                        <img
-                          src={b.image_url}
-                          alt="Banner"
-                          className="w-full h-32 object-cover bg-gray-100"
-                        />
+                        <div className="relative w-full h-32 bg-gray-100">
+                          <Image
+                            src={b.image_url}
+                            alt="Banner"
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          />
+                        </div>
 
                         {editingBannerId === b.id ? (
                           // Form Edit Inline
                           <div className="p-3 bg-blue-50 border-b border-blue-100 space-y-2">
                             <div>
-                              <label className="block text-[10px] font-semibold text-gray-600 mb-1">
+                              <label
+                                htmlFor={`edit-banner-file-${b.id}`}
+                                className="block text-[10px] font-semibold text-gray-600 mb-1"
+                              >
                                 Ganti Gambar Banner (Opsional)
                               </label>
                               <input
+                                id={`edit-banner-file-${b.id}`}
                                 type="file"
                                 accept="image/*"
                                 onChange={handleEditFileChange}
@@ -597,10 +628,14 @@ export default function AdminDashboardPage() {
                               )}
                             </div>
                             <div>
-                              <label className="block text-[10px] font-semibold text-gray-600 mb-1">
+                              <label
+                                htmlFor={`edit-banner-url-${b.id}`}
+                                className="block text-[10px] font-semibold text-gray-600 mb-1"
+                              >
                                 Target URL
                               </label>
                               <input
+                                id={`edit-banner-url-${b.id}`}
                                 type="url"
                                 value={editTargetUrl}
                                 onChange={(e) =>
@@ -611,10 +646,14 @@ export default function AdminDashboardPage() {
                               />
                             </div>
                             <div>
-                              <label className="block text-[10px] font-semibold text-gray-600 mb-1">
+                              <label
+                                htmlFor={`edit-banner-urutan-${b.id}`}
+                                className="block text-[10px] font-semibold text-gray-600 mb-1"
+                              >
                                 Urutan
                               </label>
                               <input
+                                id={`edit-banner-urutan-${b.id}`}
                                 type="number"
                                 min={1}
                                 value={editUrutan}

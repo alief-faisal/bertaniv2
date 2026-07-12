@@ -1,9 +1,10 @@
 // 📁 Simpan sebagai: app/detail/[id]/page.tsx
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ChevronLeft,
   ChevronRight,
@@ -65,58 +66,71 @@ export default function DetailPoktanPage() {
     }
   }, []);
 
-  const fetchDetail = useCallback(async () => {
-    if (!id) return;
-    setLoading(true);
-    setErrorMessage("");
-    try {
-      const { data, error } = await supabase
-        .from("poktan_profiles")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      if (error) throw error;
-
-      if (data) {
-        setPoktan({
-          id: data.id,
-          nama_kelompok: data.nama_kelompok,
-          kecamatan: data.kecamatan,
-          jumlah_anggota: data.jumlah_anggota,
-          harga_sewa: Number(data.harga_sewa) || 0,
-          diskon_persen: data.diskon_persen,
-          banner_url: data.banner_url || "",
-          latitude: Number(data.latitude) || 0,
-          longitude: Number(data.longitude) || 0,
-          is_active: data.is_active,
-          created_at: data.created_at,
-          // Field opsional, aman kalau kolomnya belum ada / masih kosong.
-          nama_ketua: data.nama_ketua ?? undefined,
-          daftar_anggota: data.daftar_anggota ?? undefined,
-          gallery_urls: Array.isArray(data.gallery_urls)
-            ? data.gallery_urls
-            : undefined,
-        });
-      }
-    } catch (err) {
-      console.error("Gagal memuat detail kelompok tani:", err);
-      setErrorMessage("Kelompok tani tidak ditemukan atau gagal dimuat.");
-      setPoktan(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
   useEffect(() => {
+    if (!id) return;
+
+    let cancelled = false;
+
+    const fetchDetail = async () => {
+      setLoading(true);
+      setErrorMessage("");
+      try {
+        const { data, error } = await supabase
+          .from("poktan_profiles")
+          .select("*")
+          .eq("id", id)
+          .single();
+
+        if (error) throw error;
+
+        if (data && !cancelled) {
+          setPoktan({
+            id: data.id,
+            nama_kelompok: data.nama_kelompok,
+            kecamatan: data.kecamatan,
+            jumlah_anggota: data.jumlah_anggota,
+            harga_sewa: Number(data.harga_sewa) || 0,
+            diskon_persen: data.diskon_persen,
+            banner_url: data.banner_url || "",
+            latitude: Number(data.latitude) || 0,
+            longitude: Number(data.longitude) || 0,
+            is_active: data.is_active,
+            created_at: data.created_at,
+            // Field opsional, aman kalau kolomnya belum ada / masih kosong.
+            nama_ketua: data.nama_ketua ?? undefined,
+            daftar_anggota: data.daftar_anggota ?? undefined,
+            gallery_urls: Array.isArray(data.gallery_urls)
+              ? data.gallery_urls
+              : undefined,
+          });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Gagal memuat detail kelompok tani:", err);
+          setErrorMessage("Kelompok tani tidak ditemukan atau gagal dimuat.");
+          setPoktan(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
     fetchDetail();
-  }, [fetchDetail]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   // Fetch rekomendasi poktan dengan kecamatan yang sama
   useEffect(() => {
-    const fetchRecommendations = async () => {
-      if (!poktan) return;
+    if (!poktan) return;
 
+    let cancelled = false;
+
+    const fetchRecommendations = async () => {
       try {
         const { data, error } = await supabase
           .from("poktan_profiles")
@@ -128,7 +142,7 @@ export default function DetailPoktanPage() {
 
         if (error) throw error;
 
-        if (data) {
+        if (data && !cancelled) {
           const mapped: PoktanProfile[] = data.map((item) => ({
             id: item.id,
             nama_kelompok: item.nama_kelompok,
@@ -150,11 +164,17 @@ export default function DetailPoktanPage() {
           setRecommendedPoktans(mapped);
         }
       } catch (err) {
-        console.error("Gagal memuat rekomendasi poktan:", err);
+        if (!cancelled) {
+          console.error("Gagal memuat rekomendasi poktan:", err);
+        }
       }
     };
 
     fetchRecommendations();
+
+    return () => {
+      cancelled = true;
+    };
   }, [poktan]);
 
   // Kalau pengguna sebelumnya SUDAH memberi izin lokasi (mis. lewat tombol
@@ -271,22 +291,27 @@ export default function DetailPoktanPage() {
           {/* KOLOM KIRI: GALERI + INFORMASI */}
           <div className="lg:col-span-2 flex flex-col gap-6">
             {/* GALERI FOTO */}
-            <div className="relative bg-black rounded-[16px] overflow-hidden">
-              <div className="relative w-full h-[380px]">
-                {gallery.map((src, i) => (
-                  <img
-                    key={src + i}
-                    src={src}
-                    alt={`Foto ${poktan.nama_kelompok} ${i + 1} dari ${gallery.length}`}
-                    className={`absolute inset-0 w-full h-full object-contain bg-black transition-all duration-500 ease-in-out ${
-                      i === activeImage
-                        ? "opacity-100 translate-x-0"
-                        : i < activeImage
-                          ? "opacity-0 -translate-x-full"
-                          : "opacity-0 translate-x-full"
-                    }`}
-                  />
-                ))}
+            <div className="relative bg-black rounded-2xl overflow-hidden">
+              <div className="relative w-full h-95">
+                {gallery.map((src, i) => {
+                  const getTransitionClass = () => {
+                    if (i === activeImage) return "opacity-100 translate-x-0";
+                    if (i < activeImage) return "opacity-0 -translate-x-full";
+                    return "opacity-0 translate-x-full";
+                  };
+
+                  return (
+                    <Image
+                      key={`${poktan.id}-gallery-${i}`}
+                      src={src}
+                      alt={`Foto ${poktan.nama_kelompok} ${i + 1} dari ${gallery.length}`}
+                      fill
+                      className={`object-contain bg-black transition-all duration-500 ease-in-out ${getTransitionClass()}`}
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 66vw, 50vw"
+                      priority={i === 0}
+                    />
+                  );
+                })}
               </div>
 
               {gallery.length > 1 && (
@@ -319,17 +344,19 @@ export default function DetailPoktanPage() {
               >
                 {gallery.map((src, i) => (
                   <button
-                    key={src + i}
+                    key={`${poktan.id}-thumb-${i}`}
                     type="button"
                     role="tab"
                     aria-selected={i === activeImage}
                     onClick={() => setActiveImage(i)}
-                    className={`shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 ${i === activeImage ? "border-[#008000]" : "border-transparent"}`}
+                    className={`shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 relative ${i === activeImage ? "border-[#008000]" : "border-transparent"}`}
                   >
-                    <img
+                    <Image
                       src={src}
                       alt={`Thumbnail ${i + 1}`}
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
+                      sizes="80px"
                     />
                   </button>
                 ))}
@@ -337,7 +364,7 @@ export default function DetailPoktanPage() {
             )}
 
             {/* DETAIL INFORMASI */}
-            <div className="bg-white border border-gray-200 rounded-[16px] p-6">
+            <div className="bg-white border border-gray-200 rounded-2xl p-6">
               <h1 className="text-2xl font-bold text-gray-900 mb-1">
                 {poktan.nama_kelompok}
               </h1>
@@ -434,7 +461,7 @@ export default function DetailPoktanPage() {
 
           {/* KOLOM KANAN: HARGA + KETUA */}
           <div className="flex flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
-            <div className="bg-white border border-gray-200 rounded-[16px] p-5 shadow-sm relative">
+            <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm relative">
               {/* BUTTON FAVORIT - ICON ONLY */}
               <button
                 type="button"
@@ -493,7 +520,7 @@ export default function DetailPoktanPage() {
               </button>
             </div>
 
-            <div className="bg-white border border-gray-200 rounded-[16px] p-5 shadow-sm">
+            <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
               <p className="text-xs text-gray-400 mb-1">Ketua</p>
               <p className="font-bold text-gray-800 mb-4">
                 {poktan.nama_ketua || "Belum diisi"}

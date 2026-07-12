@@ -1,7 +1,7 @@
 // 📁 Simpan sebagai: app/user/favorit/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import PoktanCard from "@/components/PoktanCard";
@@ -64,61 +64,73 @@ export default function UserFavoritesPage() {
     getUserId();
   }, [router]);
 
-  const fetchFavorites = useCallback(async () => {
-    setLoading(true);
-    setErrorMessage("");
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      // Halaman favorit hanya untuk pengguna yang sudah login.
-      router.push("/login");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("user_favorites")
-      .select("poktan_profiles (*)")
-      .eq("user_id", user.id)
-      .returns<FavoriteJoinRow[]>();
-
-    if (error) {
-      console.error("Gagal memuat favorit:", error.message);
-      setErrorMessage("Gagal memuat daftar favorit. Coba lagi.");
-      setFavorites([]);
-      setLoading(false);
-      return;
-    }
-
-    const mapped: PoktanProfile[] = (data ?? [])
-      .map((row) => row.poktan_profiles)
-      .filter((item): item is NonNullable<typeof item> => item !== null)
-      .map((item) => ({
-        id: item.id,
-        nama_kelompok: item.nama_kelompok,
-        kecamatan: item.kecamatan,
-        jumlah_anggota: item.jumlah_anggota,
-        harga_sewa: Number(item.harga_sewa) || 0,
-        diskon_persen: item.diskon_persen,
-        banner_url: item.banner_url || "",
-        gallery_urls: Array.isArray(item.gallery_urls) ? item.gallery_urls : [],
-        latitude: Number(item.latitude) || 0,
-        longitude: Number(item.longitude) || 0,
-        is_active: item.is_active,
-        created_at: item.created_at,
-      }));
-
-    setFavorites(mapped);
-    setLoading(false);
-  }, [router]);
-
   useEffect(() => {
-    if (currentUserId) {
-      fetchFavorites();
-    }
-  }, [fetchFavorites, currentUserId]);
+    if (!currentUserId) return;
+
+    let cancelled = false;
+
+    const fetchFavorites = async () => {
+      setLoading(true);
+      setErrorMessage("");
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        // Halaman favorit hanya untuk pengguna yang sudah login.
+        router.push("/login");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("user_favorites")
+        .select("poktan_profiles (*)")
+        .eq("user_id", user.id)
+        .returns<FavoriteJoinRow[]>();
+
+      if (error) {
+        if (!cancelled) {
+          console.error("Gagal memuat favorit:", error.message);
+          setErrorMessage("Gagal memuat daftar favorit. Coba lagi.");
+          setFavorites([]);
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (!cancelled) {
+        const mapped: PoktanProfile[] = (data ?? [])
+          .map((row) => row.poktan_profiles)
+          .filter((item): item is NonNullable<typeof item> => item !== null)
+          .map((item) => ({
+            id: item.id,
+            nama_kelompok: item.nama_kelompok,
+            kecamatan: item.kecamatan,
+            jumlah_anggota: item.jumlah_anggota,
+            harga_sewa: Number(item.harga_sewa) || 0,
+            diskon_persen: item.diskon_persen,
+            banner_url: item.banner_url || "",
+            gallery_urls: Array.isArray(item.gallery_urls)
+              ? item.gallery_urls
+              : [],
+            latitude: Number(item.latitude) || 0,
+            longitude: Number(item.longitude) || 0,
+            is_active: item.is_active,
+            created_at: item.created_at,
+          }));
+
+        setFavorites(mapped);
+        setLoading(false);
+      }
+    };
+
+    fetchFavorites();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId, router]);
 
   // Wrapper untuk handle toggle favorit dengan optimistic update pada list
   const handleToggleFavorite = async (poktanId: string) => {
@@ -152,7 +164,7 @@ export default function UserFavoritesPage() {
               <span>{errorMessage}</span>
               <button
                 type="button"
-                onClick={() => fetchFavorites()}
+                onClick={() => window.location.reload()}
                 className="shrink-0 rounded-md border border-red-300 bg-white px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
               >
                 Coba Lagi
@@ -160,22 +172,29 @@ export default function UserFavoritesPage() {
             </div>
           )}
 
-          {loading ? (
+          {loading && (
             <div
               aria-busy="true"
               aria-live="polite"
               className="flex flex-col gap-4 animate-pulse"
             >
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="bg-gray-200 h-40 rounded-lg" />
+              {new Array(3).fill(0).map((_, i) => (
+                <div
+                  key={`skeleton-${i}`}
+                  className="bg-gray-200 h-40 rounded-lg"
+                />
               ))}
             </div>
-          ) : favorites.length === 0 && !errorMessage ? (
+          )}
+
+          {!loading && favorites.length === 0 && !errorMessage && (
             <div className="text-center py-20 bg-white rounded-md border border-gray-200 text-sm text-gray-400">
               Anda belum menambahkan kelompok tani ke favorit. Ketuk ikon
               bookmark pada kartu kelompok tani untuk menyimpannya di sini.
             </div>
-          ) : (
+          )}
+
+          {!loading && favorites.length > 0 && (
             <ul className="flex flex-col gap-4 list-none p-0 m-0">
               {favorites.map((poktan) => (
                 <li key={poktan.id}>
