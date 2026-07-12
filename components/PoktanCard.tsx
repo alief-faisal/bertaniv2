@@ -225,12 +225,12 @@ export default function PoktanCard({
               </span>
             )}
 
-            <p className="text-xs text-gray-600 flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+            <p className="text-xs text-slate-700 flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5 text-slate-700 shrink-0" />
               Kec. {data.kecamatan}
             </p>
 
-            <div className="flex items-center gap-3 text-xs text-gray-500 font-medium flex-wrap">
+            <div className="flex items-center gap-3 text-xs text-slate-700 font-medium flex-wrap">
               <span className="flex items-center gap-1">
                 <Users className="w-3.5 h-3.5" /> {jumlahAnggota} anggota
               </span>
@@ -240,12 +240,12 @@ export default function PoktanCard({
           {/* Bagian Harga (Di bawah & Selalu Simetris secara Vertikal) */}
           <div className="pt-4 border-t border-gray-100 flex items-end justify-between">
             <div className="flex flex-col w-full">
-              <span className="text-[12px] text-gray-600">Tarif Jasa</span>
+              <span className="text-[12px] text-slate-700">Tarif Jasa</span>
               <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">
                 <span className="text-lg font-bold text-green-700 whitespace-nowrap">
                   Rp {formatRupiah(hargaDiskon)}
                 </span>
-                <span className="text-[10px] text-gray-600 font-semibold">
+                <span className="text-[10px] text-slate-700 font-semibold">
                   / Hari
                 </span>
               </div>

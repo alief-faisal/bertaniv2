@@ -82,15 +82,15 @@ export default function FilterSidebar({
 
       {/* FILTER HARGA */}
       <form onSubmit={handleApplyPrice} className="space-y-3">
-        <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide">
-          Tarif Sewa per Hari
+        <h3 className="text-xs font-bold text-slate-700 uppercase">
+          Tarif Jasa per Hari
         </h3>
 
         <div className="flex items-center gap-2">
           <div className="flex-1">
             <label
               htmlFor="harga-min"
-              className="block text-[10px] text-gray-400 mb-1 font-medium"
+              className="block text-[10px] text-slate-700 mb-1 font-medium"
             >
               MIN
             </label>
@@ -101,14 +101,14 @@ export default function FilterSidebar({
               max={priceCeiling}
               value={localMin}
               onChange={(e) => setLocalMin(Number(e.target.value) || 0)}
-              className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-700 bg-white outline-none focus:border-[#008000] focus:ring-1 focus:ring-[#008000]"
+              className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 bg-white outline-none focus:border-[#008000] focus:ring-1 focus:ring-[#008000]"
             />
           </div>
           <span className="text-gray-300 mt-4">—</span>
           <div className="flex-1">
             <label
               htmlFor="harga-max"
-              className="block text-[10px] text-gray-400 mb-1 font-medium"
+              className="block text-[10px] text-gray-700 mb-1 font-medium"
             >
               MAKS
             </label>
