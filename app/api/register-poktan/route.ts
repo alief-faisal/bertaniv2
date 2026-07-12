@@ -2,23 +2,19 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { RegistrableRole } from "@/types";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error(
-    "❌ ERROR: Supabase URL atau Service Role Key tidak ditemukan di environment variables!",
-  );
-}
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 // Admin client: HANYA dipakai di server. Kunci ini tidak boleh pernah
 // dikirim ke browser.
-const supabaseAdmin = createClient(supabaseUrl!, supabaseServiceKey!, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
-});
+const supabaseAdmin = supabaseUrl && supabaseServiceKey 
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    })
+  : null;
 
 const VALID_KECAMATAN = new Set([
   "Angsana",
@@ -73,7 +69,7 @@ function badRequest(message: string) {
 }
 
 export async function POST(request: Request) {
-  if (!supabaseUrl || !supabaseServiceKey) {
+  if (!supabaseUrl || !supabaseServiceKey || !supabaseAdmin) {
     return NextResponse.json(
       { success: false, error: "Konfigurasi server belum lengkap." },
       { status: 500 },

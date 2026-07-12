@@ -48,7 +48,6 @@ export function PoktanCardSkeleton() {
             <div className="relative h-5 bg-gray-200 rounded w-full overflow-hidden">
               <ShimmerEffect />
             </div>
-
           </div>
 
           {/* Badge Terverifikasi Skeleton */}
