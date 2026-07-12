@@ -12,15 +12,15 @@ import { PoktanProfile } from "@/types";
 import { calculateDistanceKm, formatDistance } from "@/utils/distance";
 import dynamic from "next/dynamic";
 import { useFavorites } from "@/hooks/useFavorites";
+import {
+  PoktanGridSkeleton,
+  MiniMapSkeleton,
+} from "@/components/SkeletonShimmer";
 
 // Move dynamic import outside component to avoid recreation on each render
 const PoktanMiniMap = dynamic(() => import("@/components/PoktanMiniMap"), {
   ssr: false,
-  loading: () => (
-    <div className="w-full h-44 bg-gray-200 animate-pulse rounded-xl flex items-center justify-center text-xs text-gray-400 border border-gray-200">
-      Memuat Peta Lokasi...
-    </div>
-  ),
+  loading: () => <MiniMapSkeleton />,
 });
 
 interface SupabasePoktanRow {
@@ -73,6 +73,16 @@ export default function Home() {
       setCurrentUserId(user?.id || null);
     };
     getUserId();
+  }, []);
+
+  // Hide scrollbar on mobile for main page
+  useEffect(() => {
+    document.documentElement.classList.add("hide-scrollbar-mobile");
+    document.body.classList.add("hide-scrollbar-mobile");
+    return () => {
+      document.documentElement.classList.remove("hide-scrollbar-mobile");
+      document.body.classList.remove("hide-scrollbar-mobile");
+    };
   }, []);
 
   // Fetch data on mount and when filters change
@@ -249,24 +259,7 @@ export default function Home() {
             )}
 
             {/* KONDISI LOADING (SKELETON GRID) */}
-            {loading ? (
-              <div
-                aria-busy="true"
-                aria-live="polite"
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse"
-              >
-                {[
-                  "skel-1",
-                  "skel-2",
-                  "skel-3",
-                  "skel-4",
-                  "skel-5",
-                  "skel-6",
-                ].map((id) => (
-                  <div key={id} className="bg-gray-200 h-80 rounded-[20px]" />
-                ))}
-              </div>
-            ) : null}
+            {loading ? <PoktanGridSkeleton count={6} /> : null}
 
             {!loading && poktanList.length === 0 && !errorMessage ? (
               <div className="text-center py-20 bg-white rounded-xl border border-gray-200 text-sm text-gray-400">

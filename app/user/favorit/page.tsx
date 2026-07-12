@@ -8,6 +8,7 @@ import PoktanCard from "@/components/PoktanCard";
 import { supabase } from "@/utils/supabase";
 import { PoktanProfile } from "@/types";
 import { useFavorites } from "@/hooks/useFavorites";
+import { PoktanCardSkeleton } from "@/components/SkeletonShimmer";
 
 interface FavoriteJoinRow {
   poktan_profiles: {
@@ -176,13 +177,10 @@ export default function UserFavoritesPage() {
             <div
               aria-busy="true"
               aria-live="polite"
-              className="flex flex-col gap-4 animate-pulse"
+              className="flex flex-col gap-4"
             >
               {new Array(3).fill(0).map((_, i) => (
-                <div
-                  key={`skeleton-${i}`}
-                  className="bg-gray-200 h-40 rounded-lg"
-                />
+                <PoktanCardSkeleton key={`skeleton-${i}`} />
               ))}
             </div>
           )}

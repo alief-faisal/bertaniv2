@@ -3,12 +3,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "@/utils/supabase";
 import { Banner } from "@/types";
+import { BannerSkeleton } from "@/components/SkeletonShimmer";
 
 export default function BannerCarousel() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isTransitioning, setIsTransitioning] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -37,6 +39,17 @@ export default function BannerCarousel() {
     };
 
     fetchBanners();
+  }, []);
+
+  // Deteksi ukuran layar untuk mobile/desktop
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   const originalCount = banners.length;
@@ -84,11 +97,7 @@ export default function BannerCarousel() {
       : 0;
 
   if (loading) {
-    return (
-      <div className="w-full h-40 bg-gray-100 animate-pulse rounded-3xl flex items-center justify-center text-xs text-gray-400 max-w-7xl mx-auto my-6">
-        Memuat banner promo...
-      </div>
-    );
+    return <BannerSkeleton />;
   }
 
   if (originalCount === 0) return null;
@@ -123,10 +132,11 @@ export default function BannerCarousel() {
           className="flex flex-nowrap"
           onTransitionEnd={handleTransitionEnd}
           style={{
-            // FORMULA BARU UNTUK 38%:
-            // Tiap item bergeser sejauh 38% + gap 16px.
-            // Ditambah kompensasi awal ditarik ke kiri sebesar + 12% agar 2 item di tengah benar-benar center simetris!
-            transform: `translateX(calc(-${offsetIndex * 38}% - ${offsetIndex * 16}px + 12%))`,
+            // Mobile (2 banner @ 47%): kompensasi -3%
+            // Desktop (38%): kompensasi +12%
+            transform: isMobile
+              ? `translateX(calc(-${offsetIndex * 47}% - ${offsetIndex * 16}px - 3%))`
+              : `translateX(calc(-${offsetIndex * 38}% - ${offsetIndex * 16}px + 12%))`,
             transition: isTransitioning
               ? "transform 600ms cubic-bezier(0.25, 1, 0.5, 1)"
               : "none",
@@ -135,9 +145,12 @@ export default function BannerCarousel() {
           {displayBanners.map((banner, index) => (
             <div
               key={`${banner.id}-${index}`}
-              // Mengunci ukuran lebar secara konsisten sebesar 38% dengan jarak gap kanan 16px
-              style={{ width: "38%", marginRight: "16px" }}
-              className="flex-shrink-0 h-36 md:h-60 overflow-hidden rounded-[38px] shadow-sm border border-gray-100"
+              // Mobile: 47% (2 banner), Desktop: 38%
+              style={{
+                width: isMobile ? "47%" : "38%",
+                marginRight: "16px",
+              }}
+              className="shrink-0 h-36 md:h-60 overflow-hidden rounded-[38px] shadow-sm border border-gray-100"
             >
               {banner.target_url ? (
                 <a
