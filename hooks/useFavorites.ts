@@ -37,6 +37,36 @@ export function useFavorites(userId: string | null) {
     refreshFavorites();
   }, [refreshFavorites]);
 
+  // REALTIME: Subscribe ke perubahan user_favorites untuk user ini,
+  // sehingga favorit langsung ter-update di semua komponen/halaman.
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`user-favorites-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "user_favorites",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log("🔄 Realtime update detected in useFavorites:", payload);
+          // Refresh favorit setiap ada perubahan (insert/delete)
+          refreshFavorites();
+        },
+      )
+      .subscribe((status) => {
+        console.log("📡 useFavorites subscription status:", status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, refreshFavorites]);
+
   const toggleFavorite = useCallback(
     async (poktanId: string) => {
       if (!userId) {

@@ -7,6 +7,7 @@ import Navbar from "@/components/Navbar";
 import PoktanCard from "@/components/PoktanCard";
 import { supabase } from "@/utils/supabase";
 import { PoktanProfile } from "@/types";
+import { useFavorites } from "@/hooks/useFavorites";
 
 interface FavoriteJoinRow {
   poktan_profiles: {
@@ -17,6 +18,7 @@ interface FavoriteJoinRow {
     harga_sewa: number | string;
     diskon_persen: number;
     banner_url: string | null;
+    gallery_urls: string[] | null;
     latitude: number | string;
     longitude: number | string;
     is_active: boolean;
@@ -27,9 +29,40 @@ interface FavoriteJoinRow {
 export default function UserFavoritesPage() {
   const router = useRouter();
   const [favorites, setFavorites] = useState<PoktanProfile[]>([]);
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Gunakan hook useFavorites untuk realtime favorites
+  const { favoriteIds, toggleFavorite } = useFavorites(currentUserId);
+
+  // Load Font Awesome CSS
+  useEffect(() => {
+    if (!document.querySelector('link[href*="font-awesome"]')) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href =
+        "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css";
+      document.head.appendChild(link);
+    }
+  }, []);
+
+  // Dapatkan user ID saat komponen dimount
+  useEffect(() => {
+    const getUserId = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+
+      setCurrentUserId(user.id);
+    };
+    getUserId();
+  }, [router]);
 
   const fetchFavorites = useCallback(async () => {
     setLoading(true);
@@ -70,6 +103,7 @@ export default function UserFavoritesPage() {
         harga_sewa: Number(item.harga_sewa) || 0,
         diskon_persen: item.diskon_persen,
         banner_url: item.banner_url || "",
+        gallery_urls: Array.isArray(item.gallery_urls) ? item.gallery_urls : [],
         latitude: Number(item.latitude) || 0,
         longitude: Number(item.longitude) || 0,
         is_active: item.is_active,
@@ -77,47 +111,22 @@ export default function UserFavoritesPage() {
       }));
 
     setFavorites(mapped);
-    setFavoriteIds(new Set(mapped.map((p) => p.id)));
     setLoading(false);
   }, [router]);
 
   useEffect(() => {
-    fetchFavorites();
-  }, [fetchFavorites]);
-
-  // Klik ikon hati di halaman favorit langsung menghapus item dari daftar
-  // (toggle dua arah, sama seperti di kartu pada halaman utama).
-  const handleToggleFavorite = async (poktanId: string) => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      router.push("/login");
-      return;
+    if (currentUserId) {
+      fetchFavorites();
     }
+  }, [fetchFavorites, currentUserId]);
 
-    const wasFavorite = favoriteIds.has(poktanId);
-
-    // Optimistic update: hilangkan langsung dari list & set.
-    setFavoriteIds((prev) => {
-      const next = new Set(prev);
-      next.delete(poktanId);
-      return next;
-    });
+  // Wrapper untuk handle toggle favorit dengan optimistic update pada list
+  const handleToggleFavorite = async (poktanId: string) => {
+    // Hapus dari list secara optimistik
     setFavorites((prev) => prev.filter((p) => p.id !== poktanId));
 
-    try {
-      const { error } = await supabase
-        .from("user_favorites")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("poktan_id", poktanId);
-      if (error) throw error;
-    } catch (err) {
-      console.error("Gagal menghapus favorit:", err);
-      // Rollback dengan memuat ulang data dari server kalau gagal.
-      if (wasFavorite) fetchFavorites();
-    }
+    // Toggle favorit menggunakan hook (sudah ada rollback otomatis di hook)
+    await toggleFavorite(poktanId);
   };
 
   return (
@@ -163,8 +172,8 @@ export default function UserFavoritesPage() {
             </div>
           ) : favorites.length === 0 && !errorMessage ? (
             <div className="text-center py-20 bg-white rounded-md border border-gray-200 text-sm text-gray-400">
-              Anda belum menambahkan kelompok tani ke favorit. Ketuk ikon hati
-              pada kartu kelompok tani untuk menyimpannya di sini.
+              Anda belum menambahkan kelompok tani ke favorit. Ketuk ikon
+              bookmark pada kartu kelompok tani untuk menyimpannya di sini.
             </div>
           ) : (
             <ul className="flex flex-col gap-4 list-none p-0 m-0">

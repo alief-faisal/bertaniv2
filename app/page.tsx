@@ -11,6 +11,7 @@ import { supabase } from "@/utils/supabase";
 import { PoktanProfile } from "@/types";
 import { calculateDistanceKm, formatDistance } from "@/utils/distance";
 import dynamic from "next/dynamic";
+import { useFavorites } from "@/hooks/useFavorites";
 
 // Move dynamic import outside component to avoid recreation on each render
 const PoktanMiniMap = dynamic(() => import("@/components/PoktanMiniMap"), {
@@ -30,6 +31,7 @@ interface SupabasePoktanRow {
   harga_sewa: number | string;
   diskon_persen: number;
   banner_url: string | null;
+  gallery_urls: string[] | null;
   latitude: number | string;
   longitude: number | string;
   is_active: boolean;
@@ -53,11 +55,25 @@ export default function Home() {
     longitude: number;
   } | null>(null);
 
-  // Set id poktan yang sudah difavoritkan pengguna yang sedang login.
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  // Get current user ID untuk favorites
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Gunakan hook useFavorites untuk realtime favorites
+  const { favoriteIds, toggleFavorite } = useFavorites(currentUserId);
 
   // Ref supaya tidak setState pada komponen yang sudah unmount
   const isMountedRef = useRef<boolean>(true);
+
+  // Dapatkan user ID saat komponen dimount
+  useEffect(() => {
+    const getUserId = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
+    };
+    getUserId();
+  }, []);
 
   // Fetch data on mount and when filters change
   useEffect(() => {
@@ -102,6 +118,9 @@ export default function Home() {
           harga_sewa: Number(item.harga_sewa) || 0,
           diskon_persen: item.diskon_persen,
           banner_url: item.banner_url || "",
+          gallery_urls: Array.isArray(item.gallery_urls)
+            ? item.gallery_urls
+            : [],
           latitude: Number(item.latitude) || 0,
           longitude: Number(item.longitude) || 0,
           is_active: item.is_active,
@@ -155,80 +174,9 @@ export default function Home() {
     };
   }, [filterKecamatan, searchKeyword, minHarga, maxHarga, userLocation]);
 
-  // Fetch favorites on mount
-  useEffect(() => {
-    const loadFavorites = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setFavoriteIds(new Set());
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("user_favorites")
-        .select("poktan_id")
-        .eq("user_id", user.id);
-
-      if (!error && data) {
-        setFavoriteIds(
-          new Set(data.map((row: { poktan_id: string }) => row.poktan_id)),
-        );
-      }
-    };
-
-    void loadFavorites();
-  }, []);
-
   // Helper function to retry fetching data
   const fetchRealData = () => {
     window.location.reload();
-  };
-
-  const handleToggleFavorite = async (poktanId: string) => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      window.location.href = "/login";
-      return;
-    }
-
-    const isCurrentlyFavorite = favoriteIds.has(poktanId);
-
-    setFavoriteIds((prev) => {
-      const next = new Set(prev);
-      if (isCurrentlyFavorite) next.delete(poktanId);
-      else next.add(poktanId);
-      return next;
-    });
-
-    try {
-      if (isCurrentlyFavorite) {
-        const { error } = await supabase
-          .from("user_favorites")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("poktan_id", poktanId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("user_favorites")
-          .insert({ user_id: user.id, poktan_id: poktanId });
-        if (error) throw error;
-      }
-    } catch (err) {
-      console.error("Gagal memperbarui favorit:", err);
-      setFavoriteIds((prev) => {
-        const next = new Set(prev);
-        if (isCurrentlyFavorite) next.add(poktanId);
-        else next.delete(poktanId);
-        return next;
-      });
-    }
   };
 
   const handleNavbarFilter = (kecamatan: string, search: string) => {
@@ -334,7 +282,7 @@ export default function Home() {
                     <PoktanCard
                       data={poktan}
                       isFavorite={favoriteIds.has(poktan.id)}
-                      onToggleFavorite={handleToggleFavorite}
+                      onToggleFavorite={toggleFavorite}
                     />
                   </li>
                 ))}

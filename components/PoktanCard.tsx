@@ -1,8 +1,15 @@
 "use client";
 
-import React, { MouseEvent } from "react";
+import React, { MouseEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { MapPin, Users, ShieldCheck, Heart, Navigation } from "lucide-react";
+import {
+  MapPin,
+  Users,
+  ShieldCheck,
+  Navigation,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { PoktanProfile } from "@/types";
 import { formatDistance } from "@/utils/distance";
 
@@ -24,6 +31,19 @@ export default function PoktanCard({
   isFavorite = false,
   onToggleFavorite,
 }: PoktanCardProps) {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // Load Font Awesome CSS
+  useEffect(() => {
+    if (!document.querySelector('link[href*="font-awesome"]')) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href =
+        "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css";
+      document.head.appendChild(link);
+    }
+  }, []);
+
   // Defensif: format numerik aman dari crash
   const hargaSewa = Number(data.harga_sewa) || 0;
   const diskonPersen = Number(data.diskon_persen) || 0;
@@ -35,10 +55,50 @@ export default function PoktanCard({
   const hasDistance =
     typeof data.distanceKm === "number" && Number.isFinite(data.distanceKm);
 
+  // Gabungkan banner_url dengan gallery_urls jika ada
+  // Pastikan gallery_urls adalah array yang valid dan tidak kosong
+  const galleryImages = Array.isArray(data.gallery_urls)
+    ? data.gallery_urls.filter((url) => url && url.trim() !== "")
+    : [];
+
+  const allImages = [
+    data.banner_url || FALLBACK_IMAGE,
+    ...galleryImages,
+  ].filter(Boolean);
+
+  const hasMultipleImages = allImages.length > 1;
+
+  // Debug log untuk development
+  if (process.env.NODE_ENV === "development") {
+    console.log(`[PoktanCard] ${data.nama_kelompok}:`, {
+      banner_url: data.banner_url,
+      gallery_urls: data.gallery_urls,
+      galleryImages,
+      allImages: allImages.length,
+      hasMultipleImages,
+    });
+  }
+
   const handleFavoriteClick = (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
     onToggleFavorite?.(data.id);
+  };
+
+  const handlePrevImage = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentImageIndex((prev) =>
+      prev === 0 ? allImages.length - 1 : prev - 1,
+    );
+  };
+
+  const handleNextImage = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentImageIndex((prev) =>
+      prev === allImages.length - 1 ? 0 : prev + 1,
+    );
   };
 
   return (
@@ -51,7 +111,7 @@ export default function PoktanCard({
         {/* Bagian Foto (Simetris & Fixed Height di Desktop) */}
         <div className="relative w-full sm:w-56 md:w-full h-48 md:h-52 shrink-0 bg-gray-100">
           <img
-            src={data.banner_url || FALLBACK_IMAGE}
+            src={allImages[currentImageIndex]}
             alt={`Banner ${data.nama_kelompok}`}
             className="w-full h-full object-cover"
             loading="lazy"
@@ -64,6 +124,58 @@ export default function PoktanCard({
             </span>
           )}
 
+          {/* Tombol Chevron Kiri - Selalu muncul */}
+          <button
+            type="button"
+            onClick={handlePrevImage}
+            disabled={!hasMultipleImages}
+            aria-label="Gambar sebelumnya"
+            className={`absolute left-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-9 h-9 rounded-full bg-white shadow-lg hover:scale-110 active:scale-95 transition z-20 ${
+              !hasMultipleImages
+                ? "opacity-30 cursor-not-allowed"
+                : "opacity-90 hover:opacity-100"
+            }`}
+          >
+            <ChevronLeft className="w-6 h-6 text-gray-800" />
+          </button>
+
+          {/* Tombol Chevron Kanan - Selalu muncul */}
+          <button
+            type="button"
+            onClick={handleNextImage}
+            disabled={!hasMultipleImages}
+            aria-label="Gambar berikutnya"
+            className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-9 h-9 rounded-full bg-white shadow-lg hover:scale-110 active:scale-95 transition z-20 ${
+              !hasMultipleImages
+                ? "opacity-30 cursor-not-allowed"
+                : "opacity-90 hover:opacity-100"
+            }`}
+          >
+            <ChevronRight className="w-6 h-6 text-gray-800" />
+          </button>
+
+          {/* Indikator Dots - Hanya jika ada banyak gambar */}
+          {hasMultipleImages && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+              {allImages.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setCurrentImageIndex(idx);
+                  }}
+                  aria-label={`Gambar ${idx + 1}`}
+                  className={`w-1.5 h-1.5 rounded-full transition ${
+                    idx === currentImageIndex
+                      ? "bg-white w-4"
+                      : "bg-white/60 hover:bg-white/80"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+
           {/* Tombol Favorit */}
           <button
             type="button"
@@ -74,13 +186,13 @@ export default function PoktanCard({
                 ? `Hapus ${data.nama_kelompok} dari favorit`
                 : `Tambahkan ${data.nama_kelompok} ke favorit`
             }
-            className="absolute top-3 right-3 flex items-center justify-center w-8 h-8 rounded-full bg-white/95 shadow hover:scale-110 active:scale-95 transition"
+            className="absolute top-3 right-3 flex items-center justify-center w-8 h-8 rounded-full bg-white/95 shadow hover:scale-110 active:scale-95 transition z-10"
           >
-            <Heart
-              className={`w-4.5 h-4.5 transition-colors ${
+            <i
+              className={`text-lg transition-colors ${
                 isFavorite
-                  ? "fill-red-500 stroke-red-500"
-                  : "fill-transparent stroke-gray-600"
+                  ? "fa-solid fa-bookmark text-yellow-500"
+                  : "fa-regular fa-bookmark text-gray-600"
               }`}
             />
           </button>
@@ -96,6 +208,12 @@ export default function PoktanCard({
               </h3>
             </div>
 
+            {data.is_active && (
+              <span className="flex items-center gap-1 bg-green-700 text-white px-1.5 py-0.5 rounded text-[10px] font-semibold w-fit">
+                <ShieldCheck className="w-3 h-3" /> Terverifikasi
+              </span>
+            )}
+
             <p className="text-xs text-gray-500 flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
               Kec. {data.kecamatan}
@@ -105,20 +223,13 @@ export default function PoktanCard({
               <span className="flex items-center gap-1">
                 <Users className="w-3.5 h-3.5" /> {jumlahAnggota} anggota
               </span>
-              {data.is_active && (
-                <span className="flex items-center gap-1 text-green-700 font-semibold">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Terverifikasi
-                </span>
-              )}
             </div>
           </div>
 
           {/* Bagian Harga (Di bawah & Selalu Simetris secara Vertikal) */}
           <div className="pt-4 border-t border-gray-100 flex items-end justify-between">
             <div className="flex flex-col w-full">
-              <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
-                Tarif Sewa / Jasa
-              </span>
+              <span className="text-[12px] text-gray-400">Tarif Jasa</span>
               <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">
                 <span className="text-lg font-bold text-green-700 whitespace-nowrap">
                   Rp {formatRupiah(hargaDiskon)}
@@ -131,11 +242,12 @@ export default function PoktanCard({
               {/* Tempat Baru: Harga Coret & Badge Diskon Berdampingan */}
               {diskonPersen > 0 && (
                 <div className="mt-1 flex items-center gap-2 flex-wrap">
-                  <span className="text-xs text-gray-500 font-medium relative inline-block before:content-[''] before:absolute before:left-0 before:right-0 before:top-1/2 before:h-[1.5px] before:bg-red-500 before:-translate-y-1/2 before:-rotate-3">
+                  <span className="text-xs text-gray-500 font-medium relative inline-block before:content-[''] before:absolute before:left-0 before:right-0 before:top-1/2 before:h-[1.5px] before:bg-red-500 before:-translate-y-1/2 before:-rotate-5">
                     Rp {formatRupiah(hargaSewa)}
                   </span>
-                  <span className="bg-red-50 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded header-badge">
-                    Diskon {diskonPersen}%
+                  <span className="bg-red-50 text-red-600 text-[12px] font-semibold px-1.5 py-0.2 rounded header-badge flex items-center gap-1">
+                    <i className="fa-solid fa-tag text-red-600"></i>
+                    {diskonPersen}%
                   </span>
                 </div>
               )}

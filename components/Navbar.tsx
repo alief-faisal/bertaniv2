@@ -3,13 +3,7 @@
 
 import React, { useState, useEffect, MouseEvent, FormEvent } from "react";
 import Link from "next/link";
-import {
-  Search,
-  ChevronDown,
-  Heart,
-  LayoutDashboard,
-  Receipt,
-} from "lucide-react";
+import { Search, ChevronDown, LayoutDashboard, Receipt } from "lucide-react";
 import { supabase } from "@/utils/supabase";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
@@ -80,6 +74,17 @@ export default function Navbar({
   const [favoriteCount, setFavoriteCount] = useState<number>(0);
   const [orderCount, setOrderCount] = useState<number>(0);
 
+  // Load Font Awesome CSS
+  useEffect(() => {
+    if (!document.querySelector('link[href*="font-awesome"]')) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href =
+        "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css";
+      document.head.appendChild(link);
+    }
+  }, []);
+
   useEffect(() => {
     if (!userId) {
       setFavoriteCount(0);
@@ -120,7 +125,10 @@ export default function Navbar({
           table: "user_favorites",
           filter: `user_id=eq.${userId}`,
         },
-        () => loadCounts(),
+        (payload) => {
+          console.log("🔔 Navbar realtime update (favorites):", payload);
+          loadCounts();
+        },
       )
       .on(
         "postgres_changes",
@@ -130,9 +138,14 @@ export default function Navbar({
           table: "orders",
           filter: `user_id=eq.${userId}`,
         },
-        () => loadCounts(),
+        (payload) => {
+          console.log("🔔 Navbar realtime update (orders):", payload);
+          loadCounts();
+        },
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("📡 Navbar subscription status:", status);
+      });
 
     return () => {
       isMounted = false;
@@ -326,11 +339,11 @@ export default function Navbar({
               className="relative p-1.5 hover:bg-green-800 rounded-full transition flex items-center justify-center text-white"
               aria-label={`Kelompok tani favorit saya${favoriteCount > 0 ? `, ${favoriteCount} tersimpan` : ""}`}
             >
-              <Heart className="w-6 h-6 fill-white stroke-none" />
+              <i className="fa-solid fa-bookmark text-xl" aria-hidden="true" />
               {favoriteCount > 0 && (
                 <span
                   aria-hidden="true"
-                  className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none border border-[#008000]"
+                  className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-yellow-400 text-green-900 text-[10px] font-bold leading-none border border-[#008000]"
                 >
                   {formatBadgeCount(favoriteCount)}
                 </span>
@@ -388,7 +401,7 @@ export default function Navbar({
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="text-xs opacity-100 hover:opacity-100 cursor-pointer"
+                  className="text-xs bg-white text-green-800 px-3 py-1.5 rounded-md opacity-100 hover:opacity-100 cursor-pointer font-semibold"
                 >
                   Keluar
                 </button>

@@ -10,14 +10,14 @@ import {
   MapPin,
   Users,
   ShieldCheck,
-  Heart,
   MessageCircle,
 } from "lucide-react";
 import { supabase } from "@/utils/supabase";
 import Navbar from "@/components/Navbar";
+import PoktanCard from "@/components/PoktanCard";
 import { PoktanProfile } from "@/types";
 import { calculateDistanceKm } from "@/utils/distance";
-import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useFavorites } from "@/hooks/useFavorites";
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1589923188900-85dae523342b?w=800";
@@ -34,11 +34,36 @@ export default function DetailPoktanPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [activeImage, setActiveImage] = useState<number>(0);
-  const [isFavorite, setIsFavorite] = useState<boolean>(false);
   const [distanceKm, setDistanceKm] = useState<number | undefined>(undefined);
+  const [recommendedPoktans, setRecommendedPoktans] = useState<PoktanProfile[]>(
+    [],
+  );
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Ambil informasi user yang sedang login
-  const { role } = useCurrentUser();
+  const { favoriteIds, toggleFavorite } = useFavorites(currentUserId);
+
+  // Dapatkan user ID saat komponen dimount
+  useEffect(() => {
+    const getUserId = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
+    };
+    getUserId();
+  }, []);
+
+  // Load Font Awesome CSS
+  useEffect(() => {
+    if (!document.querySelector('link[href*="font-awesome"]')) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href =
+        "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css";
+      document.head.appendChild(link);
+    }
+  }, []);
 
   const fetchDetail = useCallback(async () => {
     if (!id) return;
@@ -87,6 +112,51 @@ export default function DetailPoktanPage() {
     fetchDetail();
   }, [fetchDetail]);
 
+  // Fetch rekomendasi poktan dengan kecamatan yang sama
+  useEffect(() => {
+    const fetchRecommendations = async () => {
+      if (!poktan) return;
+
+      try {
+        const { data, error } = await supabase
+          .from("poktan_profiles")
+          .select("*")
+          .eq("kecamatan", poktan.kecamatan)
+          .eq("is_active", true)
+          .neq("id", poktan.id)
+          .limit(4);
+
+        if (error) throw error;
+
+        if (data) {
+          const mapped: PoktanProfile[] = data.map((item) => ({
+            id: item.id,
+            nama_kelompok: item.nama_kelompok,
+            kecamatan: item.kecamatan,
+            jumlah_anggota: item.jumlah_anggota,
+            harga_sewa: Number(item.harga_sewa) || 0,
+            diskon_persen: item.diskon_persen,
+            banner_url: item.banner_url || "",
+            latitude: Number(item.latitude) || 0,
+            longitude: Number(item.longitude) || 0,
+            is_active: item.is_active,
+            created_at: item.created_at,
+            nama_ketua: item.nama_ketua ?? undefined,
+            daftar_anggota: item.daftar_anggota ?? undefined,
+            gallery_urls: Array.isArray(item.gallery_urls)
+              ? item.gallery_urls
+              : undefined,
+          }));
+          setRecommendedPoktans(mapped);
+        }
+      } catch (err) {
+        console.error("Gagal memuat rekomendasi poktan:", err);
+      }
+    };
+
+    fetchRecommendations();
+  }, [poktan]);
+
   // Kalau pengguna sebelumnya SUDAH memberi izin lokasi (mis. lewat tombol
   // "Lokasi saat ini" di Navbar pada kunjungan sebelumnya), tampilkan jarak
   // ke poktan ini juga di halaman detail — tanpa memunculkan popup izin
@@ -123,58 +193,9 @@ export default function DetailPoktanPage() {
     };
   }, [poktan]);
 
-  // Cek status favorit awal untuk kelompok tani ini.
-  useEffect(() => {
-    const checkFavorite = async () => {
-      if (!id) return;
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data } = await supabase
-        .from("user_favorites")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("poktan_id", id)
-        .maybeSingle();
-
-      setIsFavorite(!!data);
-    };
-    checkFavorite();
-  }, [id]);
-
-  const handleToggleFavorite = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      window.location.href = "/login";
-      return;
-    }
-
-    const nextValue = !isFavorite;
-    setIsFavorite(nextValue); // optimistic update
-
-    try {
-      if (nextValue) {
-        const { error } = await supabase
-          .from("user_favorites")
-          .insert({ user_id: user.id, poktan_id: id });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("user_favorites")
-          .delete()
-          .eq("user_id", user.id)
-          .eq("poktan_id", id);
-        if (error) throw error;
-      }
-    } catch (err) {
-      console.error("Gagal memperbarui favorit:", err);
-      setIsFavorite(!nextValue); // rollback
-    }
+  const handleToggleFavorite = () => {
+    if (!id) return;
+    toggleFavorite(id);
   };
 
   if (loading) {
@@ -225,9 +246,6 @@ export default function DetailPoktanPage() {
   const goNext = () =>
     setActiveImage((i) => (i === gallery.length - 1 ? 0 : i + 1));
 
-  // Cek apakah user bisa melakukan order/chat (hanya role 'user' yang boleh)
-  const canInteract = role === "user";
-
   return (
     <>
       <Navbar onFilterChange={() => {}} />
@@ -254,25 +272,22 @@ export default function DetailPoktanPage() {
           <div className="lg:col-span-2 flex flex-col gap-6">
             {/* GALERI FOTO */}
             <div className="relative bg-black rounded-[16px] overflow-hidden">
-              <img
-                src={gallery[activeImage]}
-                alt={`Foto ${poktan.nama_kelompok} ${activeImage + 1} dari ${gallery.length}`}
-                className="w-full h-[380px] object-contain bg-black"
-              />
-
-              <button
-                type="button"
-                onClick={handleToggleFavorite}
-                aria-pressed={isFavorite}
-                aria-label={
-                  isFavorite ? "Hapus dari favorit" : "Tambahkan ke favorit"
-                }
-                className="absolute top-3 right-3 flex items-center justify-center w-10 h-10 rounded-full bg-white/90 shadow hover:scale-110 active:scale-95 transition"
-              >
-                <Heart
-                  className={`w-5 h-5 ${isFavorite ? "fill-red-500 stroke-red-500" : "fill-transparent stroke-gray-600"}`}
-                />
-              </button>
+              <div className="relative w-full h-[380px]">
+                {gallery.map((src, i) => (
+                  <img
+                    key={src + i}
+                    src={src}
+                    alt={`Foto ${poktan.nama_kelompok} ${i + 1} dari ${gallery.length}`}
+                    className={`absolute inset-0 w-full h-full object-contain bg-black transition-all duration-500 ease-in-out ${
+                      i === activeImage
+                        ? "opacity-100 translate-x-0"
+                        : i < activeImage
+                          ? "opacity-0 -translate-x-full"
+                          : "opacity-0 translate-x-full"
+                    }`}
+                  />
+                ))}
+              </div>
 
               {gallery.length > 1 && (
                 <>
@@ -280,7 +295,7 @@ export default function DetailPoktanPage() {
                     type="button"
                     onClick={goPrev}
                     aria-label="Foto sebelumnya"
-                    className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center hover:bg-white"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/80 flex items-center justify-center hover:bg-white transition-all z-10"
                   >
                     <ChevronLeft className="w-9 h-9 text-gray-700" />
                   </button>
@@ -288,7 +303,7 @@ export default function DetailPoktanPage() {
                     type="button"
                     onClick={goNext}
                     aria-label="Foto berikutnya"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 flex items-center justify-center hover:bg-white"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/80 flex items-center justify-center hover:bg-white transition-all z-10"
                   >
                     <ChevronRight className="w-9 h-9 text-gray-700" />
                   </button>
@@ -419,41 +434,60 @@ export default function DetailPoktanPage() {
 
           {/* KOLOM KANAN: HARGA + KETUA */}
           <div className="flex flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
-            <div className="bg-white border border-gray-200 rounded-[16px] p-5 shadow-sm">
-              {diskonPersen > 0 && (
-                <span className="inline-flex w-fit items-center bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded mb-2">
-                  Diskon {diskonPersen}%
-                </span>
-              )}
+            <div className="bg-white border border-gray-200 rounded-[16px] p-5 shadow-sm relative">
+              {/* BUTTON FAVORIT - ICON ONLY */}
+              <button
+                type="button"
+                onClick={handleToggleFavorite}
+                aria-pressed={favoriteIds.has(id)}
+                aria-label={
+                  favoriteIds.has(id)
+                    ? "Hapus dari favorit"
+                    : "Tambahkan ke favorit"
+                }
+                className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-white border-2 border-gray-200 hover:border-yellow-300 hover:bg-yellow-50 transition shadow-sm"
+              >
+                <i
+                  className={`text-xl ${favoriteIds.has(id) ? "fa-solid fa-bookmark text-yellow-500" : "fa-regular fa-bookmark text-gray-600"}`}
+                />
+              </button>
+
               {diskonPersen > 0 && (
                 <p className="text-sm text-red-400 line-through">
                   Rp {formatRupiah(hargaSewa)}
                 </p>
               )}
-              <p className="text-2xl font-bold text-[#008000]">
-                Rp {formatRupiah(hargaDiskon)}
-                <span className="text-sm font-normal text-gray-400">
-                  {" "}
-                  / hari
-                </span>
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-2xl font-bold text-[#008000]">
+                  Rp {formatRupiah(hargaDiskon)}
+                  <span className="text-sm font-normal text-gray-400">
+                    {" "}
+                    / hari
+                  </span>
+                </p>
+                {diskonPersen > 0 && (
+                  <span className="inline-flex items-center bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded">
+                    Diskon {diskonPersen}%
+                  </span>
+                )}
+              </div>
               <p className="text-sm font-semibold text-gray-700 mt-1">
                 {poktan.nama_kelompok}
               </p>
 
               <button
                 type="button"
-                disabled={!canInteract}
-                title={
-                  !canInteract
-                    ? "Hanya user yang dapat melakukan order"
-                    : "Klik untuk order"
-                }
-                className={`w-full mt-4 font-semibold py-3 rounded-[10px] flex items-center justify-center gap-2 transition ${
-                  canInteract
-                    ? "bg-[#008000] hover:bg-green-700 text-white cursor-pointer"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                }`}
+                onClick={async () => {
+                  const {
+                    data: { user },
+                  } = await supabase.auth.getUser();
+                  if (!user) {
+                    window.location.href = "/login";
+                  } else {
+                    // Logika order akan ditambahkan di sini
+                  }
+                }}
+                className="w-full mt-4 font-semibold py-3 rounded-[10px] flex items-center justify-center gap-2 transition bg-[#008000] hover:bg-green-700 text-white cursor-pointer"
               >
                 Order Sekarang
               </button>
@@ -466,17 +500,16 @@ export default function DetailPoktanPage() {
               </p>
               <button
                 type="button"
-                disabled={!canInteract}
-                title={
-                  !canInteract
-                    ? "Hanya user yang dapat melakukan chat"
-                    : "Klik untuk chat"
-                }
-                className={`w-full font-semibold py-2.5 rounded-[10px] flex items-center justify-center gap-2 transition ${
-                  canInteract
-                    ? "border border-[#008000] text-[#008000] hover:bg-green-50 cursor-pointer"
-                    : "border border-gray-300 text-gray-400 cursor-not-allowed"
-                }`}
+                onClick={async () => {
+                  const {
+                    data: { user },
+                  } = await supabase.auth.getUser();
+                  if (!user) {
+                    window.location.href = "/login";
+                  }
+                  // Logika chat akan ditambahkan di sini
+                }}
+                className="w-full font-semibold py-2.5 rounded-[10px] flex items-center justify-center gap-2 transition border border-[#008000] text-[#008000] hover:bg-green-50 cursor-pointer"
               >
                 <MessageCircle className="w-4 h-4" />
                 Chat
@@ -484,6 +517,27 @@ export default function DetailPoktanPage() {
             </div>
           </div>
         </div>
+
+        {/* SECTION REKOMENDASI POKTAN */}
+        {recommendedPoktans.length > 0 && (
+          <section className="mt-12">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">
+                Rekomendasi Poktan di Kec. {poktan.kecamatan}
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {recommendedPoktans.map((item) => (
+                <PoktanCard
+                  key={item.id}
+                  data={item}
+                  isFavorite={favoriteIds.has(item.id)}
+                  onToggleFavorite={toggleFavorite}
+                />
+              ))}
+            </div>
+          </section>
+        )}
       </main>
     </>
   );
