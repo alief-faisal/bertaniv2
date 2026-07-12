@@ -24,8 +24,7 @@ export default function PoktanCard({
   isFavorite = false,
   onToggleFavorite,
 }: PoktanCardProps) {
-  // Defensif: field numerik dari Supabase kadang datang sebagai string atau
-  // null/undefined kalau kolom kosong. Selalu jatuhkan ke 0 daripada crash.
+  // Defensif: format numerik aman dari crash
   const hargaSewa = Number(data.harga_sewa) || 0;
   const diskonPersen = Number(data.diskon_persen) || 0;
   const jumlahAnggota = Number(data.jumlah_anggota) || 0;
@@ -37,7 +36,6 @@ export default function PoktanCard({
     typeof data.distanceKm === "number" && Number.isFinite(data.distanceKm);
 
   const handleFavoriteClick = (e: MouseEvent<HTMLButtonElement>) => {
-    // Cegah klik jantung ikut men-trigger navigasi <Link> pembungkus card.
     e.preventDefault();
     e.stopPropagation();
     onToggleFavorite?.(data.id);
@@ -47,25 +45,26 @@ export default function PoktanCard({
     <Link
       href={`/detail/${data.id}`}
       aria-label={`Lihat detail ${data.nama_kelompok}`}
-      className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#008000] rounded-[20px]"
+      className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#008000] rounded-md h-full"
     >
-      <article className="flex flex-col sm:flex-row bg-white border border-gray-200 rounded-[20px] overflow-hidden shadow-sm hover:shadow-md transition w-full">
-        {/* Foto */}
-        <div className="relative w-full sm:w-56 h-44 md:h-50 sm:h-auto shrink-0 bg-gray-100">
+      <article className="flex flex-col sm:flex-row md:flex-col bg-white border border-gray-200 rounded-[10px] overflow-hidden shadow-sm transition h-full">
+        {/* Bagian Foto (Simetris & Fixed Height di Desktop) */}
+        <div className="relative w-full sm:w-56 md:w-full h-48 md:h-52 shrink-0 bg-gray-100">
           <img
             src={data.banner_url || FALLBACK_IMAGE}
             alt={`Banner ${data.nama_kelompok}`}
             className="w-full h-full object-cover"
+            loading="lazy"
           />
 
           {hasDistance && (
-            <span className="absolute top-2 left-2 flex items-center gap-1 bg-green-600 text-white font-semibold text-[10px] px-2 py-0.5 rounded-full shadow">
+            <span className="absolute top-0 left-0 flex items-center gap-1 bg-[#008000] text-white font-semibold text-[10px] px-2.5 py-1.5 rounded-br-xl shadow-sm z-10">
               <Navigation className="w-3 h-3" aria-hidden="true" />
               {formatDistance(data.distanceKm as number)}
             </span>
           )}
 
-          {/* Tombol love/favorit di kanan atas foto */}
+          {/* Tombol Favorit */}
           <button
             type="button"
             onClick={handleFavoriteClick}
@@ -75,60 +74,71 @@ export default function PoktanCard({
                 ? `Hapus ${data.nama_kelompok} dari favorit`
                 : `Tambahkan ${data.nama_kelompok} ke favorit`
             }
-            className="absolute top-2 right-2 flex items-center justify-center w-8 h-8 rounded-full bg-white/90 shadow hover:scale-110 active:scale-95 transition"
+            className="absolute top-3 right-3 flex items-center justify-center w-8 h-8 rounded-full bg-white/95 shadow hover:scale-110 active:scale-95 transition"
           >
             <Heart
-              className={`w-4.5 h-4.5 ${isFavorite ? "fill-red-500 stroke-red-500" : "fill-transparent stroke-gray-600"}`}
+              className={`w-4.5 h-4.5 transition-colors ${
+                isFavorite
+                  ? "fill-red-500 stroke-red-500"
+                  : "fill-transparent stroke-gray-600"
+              }`}
             />
           </button>
         </div>
 
-        {/* Info utama */}
-        <div className="flex-1 min-w-0 p-4 flex flex-col justify-center gap-2 border-b sm:border-b-0 sm:border-r border-gray-100">
-          <h3 className="font-bold text-gray-800 text-xl leading-snug line-clamp-2">
-            {data.nama_kelompok}
-          </h3>
+        {/* Wrapper Konten: Menggunakan flex-1 dan justify-between agar tinggi konten selalu sejajar */}
+        <div className="flex flex-col flex-1 p-5 justify-between gap-4">
+          {/* Info Utama */}
+          <div className="space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="font-bold text-gray-800 text-lg md:text-xl leading-snug line-clamp-2 min-h-[3.5rem]">
+                {data.nama_kelompok}
+              </h3>
+            </div>
 
-          <p className="text-xs text-gray-500 flex items-center gap-1">
-            <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-            Kec. {data.kecamatan}
-          </p>
+            <p className="text-xs text-gray-500 flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              Kec. {data.kecamatan}
+            </p>
 
-          <div className="flex items-center gap-4 text-xs text-gray-500 font-medium flex-wrap">
-            <span className="flex items-center gap-1">
-              <Users className="w-3.5 h-3.5" /> {jumlahAnggota} anggota
-            </span>
-            {data.is_active && (
-              <span className="flex items-center gap-1 text-green-700">
-                <ShieldCheck className="w-3.5 h-3.5" /> Terverifikasi
+            <div className="flex items-center gap-3 text-xs text-gray-500 font-medium flex-wrap">
+              <span className="flex items-center gap-1">
+                <Users className="w-3.5 h-3.5" /> {jumlahAnggota} anggota
               </span>
-            )}
+              {data.is_active && (
+                <span className="flex items-center gap-1 text-green-700 font-semibold">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Terverifikasi
+                </span>
+              )}
+            </div>
           </div>
 
-          {diskonPersen > 0 && (
-            <span className="inline-flex w-fit items-center bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded">
-              Diskon {diskonPersen}%
-            </span>
-          )}
-        </div>
+          {/* Bagian Harga (Di bawah & Selalu Simetris secara Vertikal) */}
+          <div className="pt-4 border-t border-gray-100 flex items-end justify-between">
+            <div className="flex flex-col">
+              <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
+                Tarif Sewa / Jasa
+              </span>
+              <div className="flex items-baseline gap-1.5 mt-0.5">
+                <span className="text-lg font-bold text-green-700 whitespace-nowrap">
+                  Rp {formatRupiah(hargaDiskon)}
+                </span>
+                <span className="text-[10px] text-gray-400 font-normal">
+                  / Hari
+                </span>
+              </div>
+              {diskonPersen > 0 && (
+                <span className="text-xs text-red-400 line-through font-normal mt-0.5">
+                  Rp {formatRupiah(hargaSewa)}
+                </span>
+              )}
+            </div>
 
-        {/* Harga */}
-        <div className="w-full sm:w-40 shrink-0 bg-gray-50/70 p-4 flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1 text-right">
-          <span className="text-[10px] text-gray-400 font-medium sm:mb-1">
-            Tarif Sewa / Jasa
-          </span>
-          <div className="flex flex-col items-end">
             {diskonPersen > 0 && (
-              <span className="text-xs text-red-400 line-through font-normal">
-                Rp {formatRupiah(hargaSewa)}
+              <span className="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-1 rounded header-badge self-center">
+                Diskon {diskonPersen}%
               </span>
             )}
-            <span className="text-base font-bold text-green-700 whitespace-nowrap">
-              Rp {formatRupiah(hargaDiskon)}
-            </span>
-            <span className="text-[10px] text-gray-400 font-normal">
-              / Hari
-            </span>
           </div>
         </div>
       </article>

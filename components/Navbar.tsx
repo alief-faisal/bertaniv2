@@ -388,7 +388,7 @@ export default function Navbar({
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="text-xs opacity-80 hover:opacity-100"
+                  className="text-xs opacity-100 hover:opacity-100 cursor-pointer"
                 >
                   Keluar
                 </button>

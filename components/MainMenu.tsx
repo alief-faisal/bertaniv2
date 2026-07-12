@@ -1,4 +1,5 @@
 import React from "react";
+import { motion } from "framer-motion";
 
 const MENUS = [
   { name: "Sewa Traktor", icon: "/icons/ikon1.png" },
@@ -11,30 +12,79 @@ const MENUS = [
   { name: "Lahan Jemur", icon: "/icons/ikon8.png" },
 ];
 
+// 1. Definisikan variasi animasi untuk container induk
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      // Mengatur jeda waktu muncul antar item dari kiri ke kanan
+      staggerChildren: 0.1,
+    },
+  },
+};
+
+// 2. Definisikan variasi animasi untuk masing-masing item menu
+const itemVariants = {
+  hidden: {
+    opacity: 0,
+    y: 20, // Muncul sedikit dari bawah agar efek spring lebih terasa
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      type: "spring",
+      stiffness: 400,
+      damping: 25,
+    },
+  },
+};
+
 export default function MainMenu() {
   return (
     <section className="max-w-7xl mx-auto px-4 my-8">
-      <div className="grid grid-cols-4 md:grid-cols-8 gap-4 justify-items-center bg-white p-6 rounded-[20px] border border-gray-100">
+      {/* Container Induk dengan Framer Motion */}
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="grid grid-cols-4 md:grid-cols-8 gap-4 justify-items-center bg-white p-6 rounded-[20px] border border-gray-100 shadow-sm"
+      >
         {MENUS.map((menu, i) => {
           return (
-            <div
+            <motion.div
               key={i}
-              className="flex flex-col items-center gap-2 cursor-pointer"
+              variants={itemVariants}
+              className="flex flex-col items-center gap-2 cursor-pointer relative group"
+              // Efek macOS Dock saat di-hover
+              whileHover={{
+                scale: 1.1,
+                y: -8,
+              }}
+              transition={{
+                type: "spring",
+                stiffness: 400,
+                damping: 25,
+              }}
             >
-              <div className="p-2 transition duration-200">
+              {/* Wrapper Icon */}
+              <div className="p-2 transition-colors duration-200">
                 <img
                   src={menu.icon}
                   alt={menu.name}
                   className="w-10 h-10 object-contain"
                 />
               </div>
+
+              {/* Text Label */}
               <span className="text-xs font-medium text-gray-700 text-center tracking-tight">
                 {menu.name}
               </span>
-            </div>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
     </section>
   );
 }

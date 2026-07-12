@@ -84,7 +84,7 @@ export async function POST(request: Request) {
   let uploadedFilePath: string | null = null;
 
   try {
-    const body = (await request.json()) as Partial<RegisterPayload>;
+    const body = await request.json();
 
     const {
       email,
@@ -99,8 +99,6 @@ export async function POST(request: Request) {
       hargaSewa,
       bannerBase64,
       bannerFileName,
-      latitude,
-      longitude,
     } = body;
 
     // ---------- 1. VALIDASI DASAR (berlaku untuk semua role) ----------
@@ -118,12 +116,13 @@ export async function POST(request: Request) {
       return badRequest("Nama lengkap wajib diisi.");
     }
 
-    // PENTING (keamanan): role yang boleh dipilih dari form publik HANYA
-    // 'user' atau 'poktan'. 'admin' tidak pernah valid di sini, apapun yang
-    // dikirim client — ini mencegah privilege escalation lewat request langsung.
     const role: RegistrableRole = selectedRole === "poktan" ? "poktan" : "user";
 
-    // ---------- 2. VALIDASI KHUSUS POKTAN ----------
+    // Variabel penampung koordinat murni angka
+    let parsedLatitude: number = 0;
+    let parsedLongitude: number = 0;
+
+// ---------- 2. VALIDASI KHUSUS POKTAN ----------
     if (role === "poktan") {
       if (!namaKelompok || namaKelompok.trim().length < 3) {
         return badRequest(
@@ -147,25 +146,75 @@ export async function POST(request: Request) {
       ) {
         return badRequest("Tarif sewa tidak valid.");
       }
+
+      // === BAGIAN KOORDINAT YANG DIGANTI & DIPERBAIKI ===
+      // 1. Ambil data mentah, ubah ke string, dan pastikan tanda koma ditukar menjadi titik desimal
+      const rawLat = String(body.latitude ?? "").trim().replace(",", ".");
+      const rawLng = String(body.longitude ?? "").trim().replace(",", ".");
+
+      // 2. Konversi ke tipe data angka murni
+      parsedLatitude = Number(rawLat);
+      parsedLongitude = Number(rawLng);
+
+      // LOG UNTUK DEBUGGING (Cek terminal VS Code Anda jika error berlanjut)
+      console.log("--- DEBUG KOORDINAT ---");
+      console.log("Mentah dari client -> Lat:", body.latitude, " | Lng:", body.longitude);
+      console.log("Hasil Parsing Angka -> Lat:", parsedLatitude, " | Lng:", parsedLongitude);
+
+      // 3. Validasi jika kolom kosong atau bukan angka desimal yang valid
       if (
-        typeof latitude !== "number" ||
-        typeof longitude !== "number" ||
-        !Number.isFinite(latitude) ||
-        !Number.isFinite(longitude) ||
-        latitude < -11 ||
-        latitude > 6 ||
-        longitude < 95 ||
-        longitude > 141
+        rawLat === "" || 
+        rawLng === "" ||
+        isNaN(parsedLatitude) || 
+        isNaN(parsedLongitude) ||
+        !Number.isFinite(parsedLatitude) ||
+        !Number.isFinite(parsedLongitude)
       ) {
-        // Rentang kasar wilayah Indonesia — mencegah input koordinat acak/salah.
-        return badRequest("Koordinat lokasi tidak valid.");
+        return badRequest("Koordinat lokasi harus diisi dengan angka desimal (gunakan titik, misal: -6.3112).");
       }
+
+      // 4. Validasi batas wilayah Indonesia
+      if (
+        parsedLatitude < -11 ||
+        parsedLatitude > 6 ||
+        parsedLongitude < 95 ||
+        parsedLongitude > 141
+      ) {
+        return badRequest(`Koordinat (${parsedLatitude}, ${parsedLongitude}) berada di luar jangkauan wilayah Indonesia.`);
+      }
+      // === END BAGIAN YANG DIGANTI ===
+
+      if (!bannerBase64 || !bannerFileName) {
+        return badRequest("Foto banner kelompok wajib diunggah.");
+      }
+    
+
+      // --- PERBAIKAN DI SINI: Paksa konversi string dari input manual ke tipe Number murni ---
+      parsedLatitude = Number(body.latitude);
+      parsedLongitude = Number(body.longitude);
+
+      if (
+        isNaN(parsedLatitude) ||
+        isNaN(parsedLongitude) ||
+        !Number.isFinite(parsedLatitude) ||
+        !Number.isFinite(parsedLongitude) ||
+        parsedLatitude < -11 ||
+        parsedLatitude > 6 ||
+        parsedLongitude < 95 ||
+        parsedLongitude > 141
+      ) {
+        // Rentang kasar wilayah Indonesia — mencegah koordinat acak/kosong.
+        return badRequest(
+          "Koordinat lokasi tidak valid atau di luar jangkauan wilayah.",
+        );
+      }
+
       if (!bannerBase64 || !bannerFileName) {
         return badRequest("Foto banner kelompok wajib diunggah.");
       }
     }
 
-    // ---------- 3. DAFTARKAN USER (Admin Auth API, bypass RLS auth) ----------
+    // ---------- 3. DAFTARKAN USER (Admin Auth API) ----------
     const { data: authData, error: authError } =
       await supabaseAdmin.auth.admin.createUser({
         email,
@@ -176,7 +225,6 @@ export async function POST(request: Request) {
 
     if (authError) {
       console.error("❌ Auth Error:", authError.message);
-      // Jangan bocorkan detail internal ke client.
       const message = authError.message.toLowerCase().includes("already")
         ? "Email sudah terdaftar."
         : "Gagal mendaftarkan akun.";
@@ -190,7 +238,7 @@ export async function POST(request: Request) {
     if (!user) throw new Error("Gagal membuat user auth.");
     createdUserId = user.id;
 
-    // ---------- 4. UPLOAD BANNER (server-side, service role) ----------
+    // ---------- 4. UPLOAD BANNER (Server Side Storage) ----------
     let bannerUrl: string | null = null;
 
     if (role === "poktan" && bannerBase64 && bannerFileName) {
@@ -239,8 +287,6 @@ export async function POST(request: Request) {
     }
 
     // ---------- 5. INSERT DATA PROFIL POKTAN ----------
-    // Catatan: baris public.profiles dibuat OTOMATIS oleh trigger database
-    // (on_auth_user_created) berdasarkan user_metadata.chosen_role di atas.
     if (role === "poktan") {
       const { error: profileError } = await supabaseAdmin
         .from("poktan_profiles")
@@ -255,15 +301,14 @@ export async function POST(request: Request) {
             harga_sewa: hargaSewa,
             diskon_persen: 0,
             banner_url: bannerUrl,
-            latitude,
-            longitude,
+            latitude: parsedLatitude, // Gunakan nilai angka yang sudah dikonversi murni
+            longitude: parsedLongitude, // Gunakan nilai angka yang sudah dikonversi murni
             is_active: false,
           },
         ]);
 
       if (profileError) {
         console.error("❌ Database Insert Error:", profileError.message);
-        // Rollback: hapus file yang sudah terupload dan akun auth yang menggantung.
         if (uploadedFilePath) {
           await supabaseAdmin.storage
             .from("poktan-media")
@@ -290,7 +335,6 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("❌ Unexpected register error:", error);
 
-    // Rollback terakhir jika user auth sudah sempat terbuat sebelum error tak terduga.
     if (createdUserId) {
       await supabaseAdmin.auth.admin.deleteUser(createdUserId).catch(() => {});
     }

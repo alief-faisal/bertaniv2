@@ -10,6 +10,7 @@ import FilterSidebar from "@/components/FilterSidebar";
 import { supabase } from "@/utils/supabase";
 import { PoktanProfile } from "@/types";
 import { calculateDistanceKm, formatDistance } from "@/utils/distance";
+import dynamic from "next/dynamic";
 
 interface SupabasePoktanRow {
   id: string;
@@ -37,7 +38,6 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState<string>("");
 
   // Koordinat GPS pengguna, diisi setelah "Lokasi saat ini" berhasil dideteksi
-  // di Navbar. Dipakai untuk menghitung + mengurutkan jarak tiap poktan.
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -46,8 +46,7 @@ export default function Home() {
   // Set id poktan yang sudah difavoritkan pengguna yang sedang login.
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
-  // Ref supaya tidak setState pada komponen yang sudah unmount (mis. saat
-  // pengguna berpindah halaman sebelum request selesai).
+  // Ref supaya tidak setState pada komponen yang sudah unmount
   const isMountedRef = useRef<boolean>(true);
 
   const fetchRealData = useCallback(async () => {
@@ -69,7 +68,6 @@ export default function Home() {
 
       const trimmedKeyword = searchKeyword.trim();
       if (trimmedKeyword !== "") {
-        // Escape karakter khusus ILIKE (% dan _) agar tidak jadi wildcard tak terduga
         const safeKeyword = trimmedKeyword.replace(/[%_]/g, "\\$&");
         query = query.ilike("nama_kelompok", `%${safeKeyword}%`);
       }
@@ -96,8 +94,7 @@ export default function Home() {
         created_at: item.created_at,
       }));
 
-      // Kalau lokasi GPS pengguna sudah diketahui, hitung jarak tiap poktan
-      // lalu urutkan dari yang terdekat.
+      // Jika lokasi GPS diketahui, hitung jarak lalu urutkan terdekat
       if (userLocation) {
         mappedData = mappedData
           .map((poktan) => {
@@ -110,9 +107,6 @@ export default function Home() {
             return {
               ...poktan,
               distanceKm,
-              // `distance` (string) adalah label badge siap-tampil sesuai
-              // definisi di types/index.ts, PoktanCard cukup membacanya
-              // langsung tanpa perlu format ulang.
               distance: formatDistance(distanceKm),
             };
           })
@@ -147,8 +141,6 @@ export default function Home() {
     };
   }, [fetchRealData]);
 
-  // Ambil daftar favorit milik pengguna yang sedang login (kalau ada), agar
-  // tombol love di tiap PoktanCard langsung menunjukkan status yang benar.
   const fetchFavorites = useCallback(async () => {
     const {
       data: { user },
@@ -181,15 +173,12 @@ export default function Home() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      // Belum login: arahkan ke halaman masuk supaya favorit tersimpan ke akun.
       window.location.href = "/login";
       return;
     }
 
     const isCurrentlyFavorite = favoriteIds.has(poktanId);
 
-    // Optimistic update supaya ikon hati langsung berubah tanpa menunggu
-    // roundtrip ke Supabase.
     setFavoriteIds((prev) => {
       const next = new Set(prev);
       if (isCurrentlyFavorite) next.delete(poktanId);
@@ -213,7 +202,6 @@ export default function Home() {
       }
     } catch (err) {
       console.error("Gagal memperbarui favorit:", err);
-      // Rollback kalau request ke Supabase gagal.
       setFavoriteIds((prev) => {
         const next = new Set(prev);
         if (isCurrentlyFavorite) next.add(poktanId);
@@ -228,8 +216,6 @@ export default function Home() {
     setSearchKeyword(search);
   };
 
-  // Dipanggil Navbar setelah GPS browser berhasil mendeteksi koordinat asli
-  // pengguna (tombol "Lokasi saat ini").
   const handleLocationDetected = (latitude: number, longitude: number) => {
     setUserLocation({ latitude, longitude });
   };
@@ -245,20 +231,35 @@ export default function Home() {
     setMaxHarga(PRICE_CEILING);
   };
 
-  return (
-    <>
-      <Navbar
-        onFilterChange={handleNavbarFilter}
-        onLocationDetected={handleLocationDetected}
-      />
-      <main className="min-h-screen pb-20 bg-gray-50">
-        <BannerCarousel />
-        <MainMenu />
+  const PoktanMiniMap = dynamic(() => import("@/components/PoktanMiniMap"), {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-44 bg-gray-200 animate-pulse rounded-xl flex items-center justify-center text-xs text-gray-400 border border-gray-200">
+        Memuat Peta Lokasi...
+      </div>
+    ),
+  });
 
-        <section
-          aria-labelledby="poktan-heading"
-          className="max-w-7xl mx-auto px-4 mt-8 flex flex-col lg:flex-row gap-6"
-        >
+return (
+  <>
+    <Navbar
+      onFilterChange={handleNavbarFilter}
+      onLocationDetected={handleLocationDetected}
+    />
+    <main className="min-h-screen pb-20 bg-white">
+      <BannerCarousel />
+      <MainMenu />
+
+      <section
+        aria-labelledby="poktan-heading"
+        className="max-w-7xl mx-auto px-4 mt-8 flex flex-col lg:flex-row gap-8"
+      >
+        {/* ================= STICKY CONTAINER KIRI (MAP + FILTER) ================= */}
+        <div className="w-full lg:w-64 shrink-0 lg:sticky lg:top-24 lg:self-start space-y-6">
+          {/* 🗺️ MINI MAP BARU */}
+          <PoktanMiniMap data={poktanList} />
+
+          {/* SIDEBAR FILTER */}
           <FilterSidebar
             selectedKecamatan={filterKecamatan}
             onKecamatanChange={(kec) => setFilterKecamatan(kec)}
@@ -268,71 +269,70 @@ export default function Home() {
             onPriceApply={handlePriceApply}
             onReset={handleResetFilters}
           />
+        </div>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-6">
-              <h2
-                id="poktan-heading"
-                className="text-xl font-bold text-gray-800"
-              >
-                Kelompok Tani Terdaftar
-              </h2>
-              {!loading && (
-                <span className="text-xs text-gray-400">
-                  {poktanList.length} kelompok ditemukan
-                  {userLocation
-                    ? " · diurutkan berdasarkan jarak terdekat"
-                    : ""}
-                </span>
-              )}
-            </div>
-
-            {errorMessage && (
-              <div
-                role="alert"
-                className="mb-6 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-4"
-              >
-                <span>{errorMessage}</span>
-                <button
-                  type="button"
-                  onClick={() => fetchRealData()}
-                  className="shrink-0 rounded-md border border-red-300 bg-white px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
-                >
-                  Coba Lagi
-                </button>
-              </div>
-            )}
-
-            {loading ? (
-              <div
-                aria-busy="true"
-                aria-live="polite"
-                className="flex flex-col gap-4 animate-pulse"
-              >
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="bg-gray-200 h-40 rounded-lg" />
-                ))}
-              </div>
-            ) : poktanList.length === 0 && !errorMessage ? (
-              <div className="text-center py-20 bg-white rounded-md border border-gray-200 text-sm text-gray-400">
-                Belum ada data kelompok tani yang sesuai untuk filter ini.
-              </div>
-            ) : (
-              <ul className="flex flex-col gap-4 list-none p-0 m-0">
-                {poktanList.map((poktan) => (
-                  <li key={poktan.id}>
-                    <PoktanCard
-                      data={poktan}
-                      isFavorite={favoriteIds.has(poktan.id)}
-                      onToggleFavorite={handleToggleFavorite}
-                    />
-                  </li>
-                ))}
-              </ul>
+        {/* KONTEN UTAMA (DAFTAR CARD) */}
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+            <h2 id="poktan-heading" className="text-xl font-bold text-gray-800">
+              Kelompok Tani Terdaftar
+            </h2>
+            {!loading && (
+              <span className="text-xs text-gray-400">
+                {poktanList.length} kelompok ditemukan
+                {userLocation ? " · diurutkan berdasarkan jarak terdekat" : ""}
+              </span>
             )}
           </div>
-        </section>
-      </main>
-    </>
-  );
+
+          {errorMessage && (
+            <div
+              role="alert"
+              className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-4"
+            >
+              <span>{errorMessage}</span>
+              <button
+                type="button"
+                onClick={() => fetchRealData()}
+                className="shrink-0 rounded-md border border-red-300 bg-white px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+              >
+                Coba Lagi
+              </button>
+            </div>
+          )}
+
+          {/* KONDISI LOADING (SKELETON GRID) */}
+          {loading ? (
+            <div
+              aria-busy="true"
+              aria-live="polite"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse"
+            >
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-gray-200 h-80 rounded-[20px]" />
+              ))}
+            </div>
+          ) : poktanList.length === 0 && !errorMessage ? (
+            <div className="text-center py-20 bg-white rounded-xl border border-gray-200 text-sm text-gray-400">
+              Belum ada data kelompok tani yang sesuai untuk filter ini.
+            </div>
+          ) : (
+            /* KONDISI BERHASIL: Grid 3 Kolom Kesamping Pada Desktop */
+            <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 list-none p-0 m-0">
+              {poktanList.map((poktan) => (
+                <li key={poktan.id} className="h-full">
+                  <PoktanCard
+                    data={poktan}
+                    isFavorite={favoriteIds.has(poktan.id)}
+                    onToggleFavorite={handleToggleFavorite}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+    </main>
+  </>
+);
 }

@@ -44,8 +44,8 @@ export default function RegisterPage() {
   const [inputNamaAnggota, setInputNamaAnggota] = useState<string>("");
   const [jumlahAnggota, setJumlahAnggota] = useState<number>(0);
   const [hargaSewa, setHargaSewa] = useState<number>(0);
-  const [latitude, setLatitude] = useState<number>(-6.3112);
-  const [longitude, setLongitude] = useState<number>(105.8385);
+const [latitude, setLatitude] = useState<number | string>(-6.3112);
+const [longitude, setLongitude] = useState<number | string>(105.8385);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [locLoading, setLocLoading] = useState<boolean>(false);
 
@@ -139,8 +139,10 @@ export default function RegisterPage() {
         .map((n) => n.trim())
         .filter((n) => n !== "");
 
-      const namaKetua = arrayNamaBersih.length > 0 ? arrayNamaBersih[0] : fullName;
+      const namaKetua =
+        arrayNamaBersih.length > 0 ? arrayNamaBersih[0] : fullName;
 
+      // Di dalam file Frontend Anda, cari bagian payload sebelum fetch:
       const payload: RegisterPayload = {
         email,
         password,
@@ -152,8 +154,9 @@ export default function RegisterPage() {
         daftarAnggota: arrayNamaBersih.join(", "),
         jumlahAnggota,
         hargaSewa,
-        latitude,
-        longitude,
+        // Pastikan mengubah koma jadi titik jika pengguna mengetik koma secara manual
+        latitude: latitude ? latitude.toString().replace(",", ".") : "0",
+        longitude: longitude ? longitude.toString().replace(",", ".") : "0",
         bannerBase64,
         bannerFileName,
       };
@@ -237,7 +240,9 @@ export default function RegisterPage() {
               id="selectedRole"
               name="selectedRole"
               value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value as RegistrableRole)}
+              onChange={(e) =>
+                setSelectedRole(e.target.value as RegistrableRole)
+              }
               className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md outline-none text-sm focus:border-green-600"
             >
               <option value="user">Pengguna</option>
@@ -412,9 +417,11 @@ export default function RegisterPage() {
                   type="button"
                   onClick={handleDetectLocation}
                   disabled={locLoading}
-                  className="text-[11px] text-white bg-green-700 px-2 py-0.5 rounded border disabled:opacity-50"
+                  className="text-[11px] text-white bg-green-700 px-2 py-0.5 rounded border disabled:opacity-50 cursor-pointer"
                 >
-                  {locLoading ? "Mencari Satelit GPS..." : "Deteksi Lokasi Otomatis"}
+                  {locLoading
+                    ? "Mencari Satelit GPS..."
+                    : "Deteksi Lokasi Otomatis"}
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -428,9 +435,9 @@ export default function RegisterPage() {
                     type="number"
                     step="any"
                     required
-                    readOnly
                     value={latitude}
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm text-gray-500 outline-none"
+                    onChange={(e) => setLatitude(e.target.value)} // <-- Sekarang bisa diketik manual
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm text-gray-800 outline-none focus:border-green-600"
                     placeholder="Latitude"
                   />
                 </div>
@@ -444,9 +451,9 @@ export default function RegisterPage() {
                     type="number"
                     step="any"
                     required
-                    readOnly
                     value={longitude}
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm text-gray-500 outline-none"
+                    onChange={(e) => setLongitude(e.target.value)} // <-- Sekarang bisa diketik manual
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm text-gray-800 outline-none focus:border-green-600"
                     placeholder="Longitude"
                   />
                 </div>
@@ -458,7 +465,8 @@ export default function RegisterPage() {
                 htmlFor="bannerFile"
                 className="block text-xs font-semibold text-gray-600 mb-1"
               >
-                Unggah Foto Profil/Banner Kelompok (JPG/PNG/WEBP, maks {MAX_BANNER_MB}MB)
+                Unggah Foto Profil/Banner Kelompok (JPG/PNG/WEBP, maks{" "}
+                {MAX_BANNER_MB}MB)
               </label>
               <input
                 id="bannerFile"
