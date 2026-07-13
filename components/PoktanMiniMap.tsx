@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
+import Image from "next/image";
 import { createPortal } from "react-dom";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import { Maximize2, Minimize2, MapPin, Users, Navigation } from "lucide-react";
@@ -53,10 +54,12 @@ function AnimatedMarker({ poktan, position }: AnimatedMarkerProps) {
         <div className="flex overflow-hidden rounded-lg bg-white shadow-sm">
           {/* Image Banner - Sisi Kiri */}
           <div className="relative w-40 shrink-0 bg-gray-100">
-            <img
+            <Image
               src={poktan.banner_url || FALLBACK_IMAGE}
               alt={poktan.nama_kelompok}
-              className="h-full w-full object-cover"
+              fill
+              sizes="160px"
+              className="object-cover"
             />
             {hasDistance && (
               <span className="absolute top-2 left-2 flex items-center gap-1 bg-green-700 text-white font-semibold text-[9px] px-2 py-1 rounded-md shadow-sm">

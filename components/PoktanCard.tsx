@@ -2,6 +2,7 @@
 
 import React, { MouseEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   MapPin,
   Users,
@@ -117,13 +118,18 @@ export default function PoktanCard({
               return "translate-x-full";
             };
 
+            const isPriority = i === 0 && currentImageIndex === 0;
+
             return (
-              <img
+              <Image
                 key={`${data.id}-gallery-${i}`}
                 src={src}
                 alt={`Foto ${data.nama_kelompok} ${i + 1} dari ${allImages.length}`}
-                className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-in-out ${getTransitionClass()}`}
-                loading="lazy"
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 224px, 280px"
+                priority={isPriority}
+                loading={isPriority ? "eager" : "lazy"}
+                className={`object-cover transition-transform duration-500 ease-in-out ${getTransitionClass()}`}
               />
             );
           })}
