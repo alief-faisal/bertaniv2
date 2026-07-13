@@ -215,7 +215,7 @@ export default function Home() {
         onFilterChange={handleNavbarFilter}
         onLocationDetected={handleLocationDetected}
       />
-      <main className="min-h-screen pb-20 bg-white">
+      <main className="min-h-screen pb-20 bg-[#fcfcfc]">
         <BannerCarousel />
         <MainMenu />
 

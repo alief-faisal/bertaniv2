@@ -247,7 +247,7 @@ export default function Navbar({
               alt="Bertani Logo"
               width={120}
               height={36}
-              className="h-9 w-auto object-contain [filter:invert(90%)_sepia(79%)_saturate(2476%)_hue-rotate(86deg)_brightness(100%)_contrast(119%)]"
+              className="h-9 w-auto object-contain"
               priority
             />
           </button>
