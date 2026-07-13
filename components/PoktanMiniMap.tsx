@@ -71,12 +71,12 @@ function AnimatedMarker({ poktan, position }: AnimatedMarkerProps) {
             {/* Header */}
             <div className="space-y-1.5">
               {/* Nama Kelompok */}
-              <h4 className="font-bold text-gray-800 text-sm leading-tight line-clamp-2 min-h-[2.5rem]">
+              <h4 className="font-bold text-gray-800 text-xl leading-tight line-clamp-2 min-h-[2.5rem]">
                 {poktan.nama_kelompok}
               </h4>
 
               {/* Lokasi & Anggota */}
-              <div className="flex items-center gap-3 text-[10px] text-gray-500">
+              <div className="flex items-center gap-3 text-[10px] text-slate-700">
                 <span className="flex items-center gap-1">
                   <MapPin className="w-3 h-3" />
                   Kec. {poktan.kecamatan}
@@ -92,14 +92,12 @@ function AnimatedMarker({ poktan, position }: AnimatedMarkerProps) {
             <div className="space-y-2 mt-2">
               <div className="flex items-end justify-between">
                 <div>
-                  <span className="text-[9px] text-gray-400 uppercase tracking-wide block">
-                    Tarif Sewa
-                  </span>
+                  <span className="text-[9px] text-slate-700">Tarif Jasa</span>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-sm font-bold text-green-700">
+                    <span className="text-sm font-bold text-slate-700">
                       Rp {formatRupiah(hargaDiskon)}
                     </span>
-                    <span className="text-[8px] text-gray-400">/ Hari</span>
+                    <span className="text-[8px] text-slate-700">/ Hari</span>
                   </div>
 
                   {diskonPersen > 0 && (
@@ -117,7 +115,7 @@ function AnimatedMarker({ poktan, position }: AnimatedMarkerProps) {
                 {/* Button Lihat Detail - Compact */}
                 <a
                   href={`/detail/${poktan.id}`}
-                  className="inline-flex items-center justify-center bg-white  text-white text-[10px] font-semibold px-3 py-1.5 rounded-md transition-colors whitespace-nowrap"
+                  className="inline-flex items-center justify-center bg-white text-white text-[10px] font-semibold px-3 py-1.5 rounded-md transition-colors whitespace-nowrap"
                 >
                   Detail →
                 </a>

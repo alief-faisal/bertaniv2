@@ -237,13 +237,13 @@ export default function PoktanCard({
             </div>
           </div>
 
-          {/* Bagian Harga (Di bawah & Selalu Simetris secara Vertikal) */}
+          {/* Bagian Harga */}
           <div className="pt-4 border-t border-gray-100 flex items-end justify-between">
             <div className="flex flex-col w-full">
               <span className="text-[12px] text-slate-700">Tarif Jasa</span>
               <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">
                 <span className="text-lg font-bold text-green-700 whitespace-nowrap">
-                  Rp {formatRupiah(hargaDiskon)}
+                  IDR {formatRupiah(hargaDiskon)}
                 </span>
                 <span className="text-[10px] text-slate-700 font-semibold">
                   / Hari
@@ -254,7 +254,7 @@ export default function PoktanCard({
               {diskonPersen > 0 && (
                 <div className="mt-1 flex items-center gap-2 flex-wrap">
                   <span className="text-[14px] text-gray-600 font-medium relative inline-block before:content-[''] before:absolute before:left-0 before:right-0 before:top-1/2 before:h-[1.5px] before:bg-red-500 before:-translate-y-1/2 before:-rotate-5">
-                    Rp {formatRupiah(hargaSewa)}
+                    IDR {formatRupiah(hargaSewa)}
                   </span>
                   <span className="bg-red-50 text-red-600 text-[12px] font-semibold px-1.5 py-0.2 rounded header-badge flex items-center gap-1">
                     <i className="fa-solid fa-tag text-red-600"></i>
