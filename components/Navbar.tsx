@@ -232,7 +232,7 @@ export default function Navbar({
   };
 
   return (
-    <header className="w-full bg-[#ffff] text-white sticky top-0 z-[999] shadow-sm">
+    <header className="w-full bg-[#008000] md:bg-[#ffff] text-white sticky top-0 z-[999] shadow-sm">
       <div className="max-w-7xl mx-auto px-4 py-5 flex items-center justify-between gap-3 md:gap-4">
         {/* LOGO */}
         <div className="hidden md:block shrink-0">
@@ -443,10 +443,10 @@ export default function Navbar({
             className="md:hidden flex flex-col justify-center items-center w-6 h-6 relative z-[1002]"
           >
             <span
-              className={`block absolute h-0.5 w-6 bg-white rounded-full transition-all duration-300 transform ${isOpenMobileMenu ? "rotate-45" : "-translate-y-1"}`}
+              className={`block absolute h-2 w-6 bg-white rounded-full transition-all duration-300 transform ${isOpenMobileMenu ? "rotate-45" : "-translate-y-2"}`}
             />
             <span
-              className={`block absolute h-0.5 w-6 bg-white rounded-full transition-all duration-300 transform ${isOpenMobileMenu ? "-rotate-45" : "translate-y-1"}`}
+              className={`block absolute h-2 w-6 bg-white rounded-full transition-all duration-300 transform ${isOpenMobileMenu ? "-rotate-45" : "translate-y-1"}`}
             />
           </button>
         </div>

@@ -442,7 +442,7 @@ export default function DetailPoktanPage() {
                             <span className="inline-flex items-center justify-center min-w-6 h-6 bg-[#008000] text-white text-xs font-semibold rounded">
                               {index + 1}
                             </span>
-                            <span className="text-gray-700 leading-6">
+                            <span className="text-slate-800 leading-6">
                               {nama}
                               {index === 0 && (
                                 <span className="ml-2 text-xs text-[#008000] font-semibold">
@@ -478,16 +478,18 @@ export default function DetailPoktanPage() {
                   className={`text-xl ${favoriteIds.has(id) ? "fa-solid fa-bookmark text-yellow-500" : "fa-regular fa-bookmark text-gray-600"}`}
                 />
               </button>
-
+              <p className="text-[16px] font-semibold text-slate-800 mt-1">
+                {poktan.nama_kelompok}
+              </p>
               {diskonPersen > 0 && (
-                <p className="text-sm text-red-400 line-through">
+                <p className="text-[14px] text-slate-800 relative inline-block before:content-[''] before:absolute before:left-0 before:right-0 before:top-1/2 before:h-[1.5px] before:bg-red-500 before:-translate-y-1/2 before:-rotate-5">
                   Rp {formatRupiah(hargaSewa)}
                 </p>
               )}
               <div className="flex items-center gap-2">
                 <p className="text-2xl font-bold text-[#008000]">
                   Rp {formatRupiah(hargaDiskon)}
-                  <span className="text-sm font-normal text-gray-400">
+                  <span className="text-sm font-normal text-slate-800">
                     {" "}
                     / hari
                   </span>
@@ -498,9 +500,6 @@ export default function DetailPoktanPage() {
                   </span>
                 )}
               </div>
-              <p className="text-sm font-semibold text-gray-700 mt-1">
-                {poktan.nama_kelompok}
-              </p>
 
               <button
                 type="button"
@@ -522,7 +521,7 @@ export default function DetailPoktanPage() {
 
             <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
               <p className="text-xs text-gray-400 mb-1">Ketua</p>
-              <p className="font-bold text-gray-800 mb-4">
+              <p className="font-bold text-slate-800 mb-4">
                 {poktan.nama_ketua || "Belum diisi"}
               </p>
               <button
@@ -539,7 +538,7 @@ export default function DetailPoktanPage() {
                 className="w-full font-semibold py-2.5 rounded-[10px] flex items-center justify-center gap-2 transition border border-[#008000] text-[#008000] hover:bg-green-50 cursor-pointer"
               >
                 <MessageCircle className="w-4 h-4" />
-                Chat
+                Chat Kelompok Tani
               </button>
             </div>
           </div>

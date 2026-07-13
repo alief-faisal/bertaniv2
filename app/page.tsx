@@ -38,16 +38,21 @@ interface SupabasePoktanRow {
   created_at: string;
 }
 
-const PRICE_CEILING = 5_000_000; // batas atas slider harga; sesuaikan dengan data riil
-
 export default function Home() {
   const [poktanList, setPoktanList] = useState<PoktanProfile[]>([]);
   const [filterKecamatan, setFilterKecamatan] = useState<string>("");
   const [searchKeyword, setSearchKeyword] = useState<string>("");
   const [minHarga, setMinHarga] = useState<number>(0);
-  const [maxHarga, setMaxHarga] = useState<number>(PRICE_CEILING);
+  
+  // State dinamis untuk batas atas harga termahal
+  const [priceCeiling, setPriceCeiling] = useState<number>(1000000);
+  const [maxHarga, setMaxHarga] = useState<number>(1000000);
+  
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>("");
+
+  // Flag untuk mendeteksi apakah harga termahal dari database sudah berhasil diambil pertama kali
+  const [hasSetInitialMax, setHasSetInitialMax] = useState<boolean>(false);
 
   // Koordinat GPS pengguna, diisi setelah "Lokasi saat ini" berhasil dideteksi
   const [userLocation, setUserLocation] = useState<{
@@ -94,13 +99,16 @@ export default function Home() {
       setErrorMessage("");
 
       try {
+        // Ambil data tanpa filter harga jika ini adalah inisialisasi awal untuk mencari harga termahal asli
         let query = supabase
           .from("poktan_profiles")
           .select("*")
-          .eq("is_active", true)
-          .gte("harga_sewa", minHarga)
-          .lte("harga_sewa", maxHarga)
-          .order("created_at", { ascending: false });
+          .eq("is_active", true);
+
+        // Jika harga maksimal awal sudah terdeteksi, baru filter harga diikutkan ke query Supabase
+        if (hasSetInitialMax) {
+          query = query.gte("harga_sewa", minHarga).lte("harga_sewa", maxHarga);
+        }
 
         if (filterKecamatan) {
           query = query.eq("kecamatan", filterKecamatan);
@@ -111,6 +119,8 @@ export default function Home() {
           const safeKeyword = trimmedKeyword.replace(/[%_]/g, String.raw`\$&`);
           query = query.ilike("nama_kelompok", `%${safeKeyword}%`);
         }
+
+        query = query.order("created_at", { ascending: false });
 
         const { data, error } = await query.returns<SupabasePoktanRow[]>();
 
@@ -136,6 +146,16 @@ export default function Home() {
           is_active: item.is_active,
           created_at: item.created_at,
         }));
+
+        // DINAMIS: Deteksi harga termahal dari data asli yang ada di database
+        if (mappedData.length > 0 && !hasSetInitialMax) {
+          const highestPrice = Math.max(...mappedData.map((o) => o.harga_sewa));
+          if (highestPrice > 0) {
+            setPriceCeiling(highestPrice);
+            setMaxHarga(highestPrice);
+            setHasSetInitialMax(true);
+          }
+        }
 
         // Jika lokasi GPS diketahui, hitung jarak lalu urutkan terdekat
         if (userLocation) {
@@ -182,7 +202,7 @@ export default function Home() {
     return () => {
       isMountedRef.current = false;
     };
-  }, [filterKecamatan, searchKeyword, minHarga, maxHarga, userLocation]);
+  }, [filterKecamatan, searchKeyword, minHarga, maxHarga, userLocation, hasSetInitialMax]);
 
   // Helper function to retry fetching data
   const fetchRealData = () => {
@@ -206,7 +226,7 @@ export default function Home() {
   const handleResetFilters = () => {
     setFilterKecamatan("");
     setMinHarga(0);
-    setMaxHarga(PRICE_CEILING);
+    setMaxHarga(priceCeiling);
   };
 
   return (
@@ -234,7 +254,7 @@ export default function Home() {
               onKecamatanChange={(kec) => setFilterKecamatan(kec)}
               minHarga={minHarga}
               maxHarga={maxHarga}
-              priceCeiling={PRICE_CEILING}
+              priceCeiling={priceCeiling}
               onPriceApply={handlePriceApply}
               onReset={handleResetFilters}
             />
@@ -269,7 +289,7 @@ export default function Home() {
 
             {!loading && poktanList.length > 0 ? (
               /* KONDISI BERHASIL: Grid 3 Kolom Kesamping Pada Desktop */
-              <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 list-none p-0 m-0">
+              <ul className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-4 list-none p-0 m-0">
                 {poktanList.map((poktan) => (
                   <li key={poktan.id} className="h-full">
                     <PoktanCard

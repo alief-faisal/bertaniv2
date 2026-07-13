@@ -20,6 +20,28 @@ interface FilterSidebarProps {
   onReset: () => void;
 }
 
+// Fungsi pembantu untuk mengubah angka menjadi format IDR (contoh: 150000 -> "IDR 150.000")
+const formatRupiah = (value: number): string => {
+  if (!value) return "IDR 0";
+  const numberString = value.toString();
+  const sisa = numberString.length % 3;
+  let rupiah = numberString.substr(0, sisa);
+  const ribuan = numberString.substr(sisa).match(/\d{3}/g);
+
+  if (ribuan) {
+    const separator = sisa ? "." : "";
+    rupiah += separator + ribuan.join(".");
+  }
+
+  return `IDR ${rupiah}`;
+};
+
+// Fungsi pembantu untuk membersihkan format string menjadi angka murni kembali
+const parseRawNumber = (value: string): number => {
+  const rawValue = value.replace(/[^0-9]/g, "");
+  return Number(rawValue) || 0;
+};
+
 export default function FilterSidebar({
   selectedKecamatan,
   onKecamatanChange,
@@ -73,7 +95,7 @@ export default function FilterSidebar({
             onReset();
             setIsExpanded(false);
           }}
-          className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-[#008000] transition"
+          className="flex items-center gap-1 text-xs font-semibold text-slate-800 hover:text-[#008000] transition"
         >
           <RotateCcw className="w-3.5 h-3.5" />
           Reset All
@@ -82,7 +104,7 @@ export default function FilterSidebar({
 
       {/* FILTER HARGA */}
       <form onSubmit={handleApplyPrice} className="space-y-3">
-        <h3 className="text-xs font-bold text-slate-700 uppercase">
+        <h3 className="text-xs font-bold text-slate-800 uppercase">
           Tarif Jasa per Hari
         </h3>
 
@@ -90,17 +112,20 @@ export default function FilterSidebar({
           <div className="flex-1">
             <label
               htmlFor="harga-min"
-              className="block text-[10px] text-slate-700 mb-1 font-medium"
+              className="block text-[10px] text-slate-800 mb-1 font-medium"
             >
               MIN
             </label>
             <input
               id="harga-min"
-              type="number"
-              min={0}
-              max={priceCeiling}
-              value={localMin}
-              onChange={(e) => setLocalMin(Number(e.target.value) || 0)}
+              type="text"
+              value={formatRupiah(localMin)}
+              onChange={(e) => {
+                const rawValue = parseRawNumber(e.target.value);
+                if (rawValue <= priceCeiling) {
+                  setLocalMin(rawValue);
+                }
+              }}
               className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 bg-white outline-none focus:border-[#008000] focus:ring-1 focus:ring-[#008000]"
             />
           </div>
@@ -114,11 +139,14 @@ export default function FilterSidebar({
             </label>
             <input
               id="harga-max"
-              type="number"
-              min={0}
-              max={priceCeiling}
-              value={localMax}
-              onChange={(e) => setLocalMax(Number(e.target.value) || 0)}
+              type="text"
+              value={formatRupiah(localMax)}
+              onChange={(e) => {
+                const rawValue = parseRawNumber(e.target.value);
+                if (rawValue <= priceCeiling) {
+                  setLocalMax(rawValue);
+                }
+              }}
               className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-700 bg-white outline-none focus:border-[#008000] focus:ring-1 focus:ring-[#008000]"
             />
           </div>
@@ -136,7 +164,7 @@ export default function FilterSidebar({
 
         <button
           type="submit"
-          className="w-full bg-[#008000] text-white text-xs font-bold py-2 rounded-lg hover:bg-green-700 shadow-sm transition"
+          className="w-full bg-[#008000] text-white text-[14px] font-bold py-2 rounded-lg hover:bg-green-700 shadow-sm transition cursor-pointer"
         >
           Terapkan Harga
         </button>
@@ -151,15 +179,15 @@ export default function FilterSidebar({
         {/* 📱 Mobile: Max 5 item scrollable | 💻 Desktop: Normal auto-height list */}
         <div className="space-y-1 max-h-[200px] overflow-y-auto pr-1 lg:max-h-none lg:overflow-y-visible lg:pr-0 scrollbar-thin">
           {/* OPSI: Semua Wilayah */}
-          <label className="flex items-center gap-2.5 py-1.5 text-sm font-medium text-gray-700 cursor-pointer group">
+          <label className="flex items-center gap-2.5 py-1.5 text-sm font-medium text-gray-700">
             <input
               type="checkbox"
               checked={selectedKecamatan === ""}
               onChange={() => onKecamatanChange("")}
-              className="w-4 h-4 rounded border-gray-300 text-[#008000] focus:ring-[#008000] accent-[#008000] cursor-pointer shrink-0"
+              className="w-4 h-4 rounded border-gray-300 text-[#008000] focus:ring-[#008000] accent-[#008000] shrink-0"
             />
             <span
-              className={`transition-colors text-xs ${selectedKecamatan === "" ? "text-[#008000] font-bold" : "text-gray-600 group-hover:text-gray-900"}`}
+              className={`transition-colors text-xs ${selectedKecamatan === ""} ? "text-[#008000] font-bold" : "text-gray-600 group-hover:text-gray-900"}`}
             >
               Semua Wilayah
             </span>
@@ -170,13 +198,13 @@ export default function FilterSidebar({
             {visibleKecamatan.map((kec) => (
               <label
                 key={`desktop-${kec}`}
-                className="flex items-center gap-2.5 py-1.5 text-sm text-gray-600 cursor-pointer group"
+                className="flex items-center gap-2.5 py-1.5 text-sm text-gray-600"
               >
                 <input
                   type="checkbox"
                   checked={selectedKecamatan === kec}
                   onChange={() => onKecamatanChange(kec)}
-                  className="w-4 h-4 rounded border-gray-300 text-[#008000] focus:ring-[#008000] accent-[#008000] cursor-pointer shrink-0"
+                  className="w-4 h-4 rounded border-gray-300 text-[#008000] focus:ring-[#008000] accent-[#008000] shrink-0"
                 />
                 <span
                   className={`transition-colors text-xs ${selectedKecamatan === kec ? "text-[#008000] font-bold" : "text-gray-600 group-hover:text-gray-900"}`}
@@ -192,13 +220,13 @@ export default function FilterSidebar({
             {KECAMATAN_LIST.map((kec) => (
               <label
                 key={`mobile-${kec}`}
-                className="flex items-center gap-2.5 py-1.5 text-sm text-gray-600 cursor-pointer group"
+                className="flex items-center gap-2.5 py-1.5 text-sm text-gray-600 "
               >
                 <input
                   type="checkbox"
                   checked={selectedKecamatan === kec}
                   onChange={() => onKecamatanChange(kec)}
-                  className="w-4 h-4 rounded border-gray-300 text-[#008000] focus:ring-[#008000] accent-[#008000] cursor-pointer shrink-0"
+                  className="w-4 h-4 rounded border-gray-300 text-[#008000] focus:ring-[#008000] accent-[#008000] shrink-0"
                 />
                 <span
                   className={`transition-colors text-xs ${selectedKecamatan === kec ? "text-[#008000] font-bold" : "text-gray-600 group-hover:text-gray-900"}`}
@@ -228,7 +256,7 @@ export default function FilterSidebar({
               ) : (
                 <>
                   <ChevronDown className="w-3.5 h-3.5 shrink-0" />
-                  <span className="group-hover:underline decoration-[#008000] underline-offset-4">
+                  <span className="group-hover:underline decoration-[#008000] underline-offset-4 cursor-pointer">
                     Tampilkan Semua (+{hiddenCount})
                   </span>
                 </>

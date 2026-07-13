@@ -135,8 +135,12 @@ export default function PoktanCard({
           })}
 
           {hasDistance && (
-            <span className="absolute top-0 left-0 flex items-center gap-1 bg-[#008000] text-white font-semibold text-[10px] px-2.5 py-1.5 rounded-br-xl shadow-sm z-10">
-              <Navigation className="w-3 h-3" aria-hidden="true" />
+            <span className="absolute top-0 left-0 flex items-center gap-1 bg-[#008000] text-white font-semibold text-[12px] px-2.5 py-1.5 rounded-br-xl z-10">
+              <Navigation
+                className="w-3 h-3"
+                fill="currentColor"
+                aria-hidden="true"
+              />
               {formatDistance(data.distanceKm as number)}
             </span>
           )}
