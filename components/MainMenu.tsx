@@ -49,7 +49,7 @@ export default function MainMenu() {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-4 md:grid-cols-8 gap-4 justify-items-center bg-white p-6 rounded-[20px] border border-gray-100 shadow-sm"
+        className="grid grid-cols-4 md:grid-cols-8 gap-4 justify-items-center bg-white p-6 rounded-[20px] border border-gray-200 shadow-xs"
       >
         {MENUS.map((menu, i) => {
           return (
@@ -78,7 +78,7 @@ export default function MainMenu() {
               </div>
 
               {/* Text Label */}
-              <span className="text-xs font-medium text-gray-700 text-center tracking-tight">
+              <span className="text-[14px] font-medium text-gray-700 text-center tracking-tight">
                 {menu.name}
               </span>
             </motion.div>

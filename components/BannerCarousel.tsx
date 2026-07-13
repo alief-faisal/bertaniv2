@@ -210,22 +210,31 @@ export default function BannerCarousel() {
       </button>
 
       {/* --- INDIKATOR PIL BAWAH --- */}
-      <div className="flex justify-center items-center gap-2 mt-4">
-        {banners.map((_, idx) => (
-          <button
-            key={idx}
-            onClick={() => {
-              if (!isTransitioning) return;
-              setCurrentIndex(idx);
+      <div className="flex justify-center items-center mt-4">
+        {/* Kontainer Utama bertindak sebagai track/rel */}
+        <div className="relative flex gap-2">
+          {/* 1. Tombol-tombol Bulat sebagai Background Track (Tetap w-3) */}
+          {banners.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => {
+                if (!isTransitioning) return;
+                setCurrentIndex(idx);
+              }}
+              className="w-3 h-3 rounded-full bg-gray-300 hover:bg-gray-400 transition-colors duration-300"
+              aria-label={`Go to slide ${idx + 1}`}
+            />
+          ))}
+
+          {/* 2. Pil Aktif yang Bergeser (Ukurannya tetap w-8 dari awal) */}
+          <div
+            className="absolute top-0 left-0 h-3 w-8 bg-[#15803d] rounded-full shadow-sm pointer-events-none transition-transform duration-300 ease-out"
+            style={{
+              // w-3 (12px) + gap-2 (8px) = 20px per langkah pergeseran
+              transform: `translateX(${activeDotIndex * 20}px)`,
             }}
-            className={`h-3 rounded-full transition-all duration-300 ${
-              idx === activeDotIndex
-                ? "w-8 bg-[#15803d] shadow-sm"
-                : "w-3 bg-gray-300 hover:bg-gray-400"
-            }`}
-            aria-label={`Go to slide ${idx + 1}`}
           />
-        ))}
+        </div>
       </div>
     </div>
   );

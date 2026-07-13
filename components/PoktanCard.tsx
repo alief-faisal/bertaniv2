@@ -108,7 +108,7 @@ export default function PoktanCard({
       aria-label={`Lihat detail ${data.nama_kelompok}`}
       className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#008000] rounded-md h-full"
     >
-      <article className="flex flex-col sm:flex-row md:flex-col bg-white border border-gray-200 rounded-[10px] overflow-hidden shadow-sm transition h-full">
+      <article className="flex flex-col sm:flex-row md:flex-col bg-white border border-gray-200 rounded-[10px] overflow-hidden shadow-xs transition h-full">
         {/* Bagian Foto (Simetris & Fixed Height di Desktop) */}
         <div className="relative w-full sm:w-56 md:w-full h-48 md:h-52 shrink-0 overflow-hidden">
           {allImages.map((src, i) => {

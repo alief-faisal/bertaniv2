@@ -391,13 +391,13 @@ export default function PoktanDashboardPage() {
       {/* ==========================================
           SIDEBAR NAVIGASI
           ========================================== */}
-      <aside className="w-64 bg-green-900 text-white flex flex-col border-r border-green-800">
+      <aside className="w-full md:w-64 md:sticky md:top-0 md:h-screen bg-green-900 text-white flex flex-col border-r border-green-800 shrink-0">
         <div className="p-6 border-b border-green-800">
-          <h1 className="text-lg font-bold tracking-wider">BERTANI PANEL</h1>
+          <h1 className="text-lg font-bold tracking-wider">Panel Poktan</h1>
           <p className="text-xs text-green-300 mt-1">Dashboard Kelompok Tani</p>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <div className="w-full flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium bg-green-700 text-white">
             <HiOutlineUserGroup size={18} />
             <span>Profil Kelompok</span>
@@ -407,17 +407,17 @@ export default function PoktanDashboardPage() {
         <div className="p-4 border-t border-green-800 space-y-2">
           <button
             onClick={() => (window.location.href = "/")}
-            className="w-full flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 text-white text-xs py-2 rounded-md font-medium transition text-center"
+            className="w-full flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 text-white text-[14px] py-2 rounded-md font-medium transition text-center"
           >
             <HiOutlineHome size={14} />
-            <span>Kembali ke Beranda</span>
+            <span>Beranda</span>
           </button>
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center justify-center gap-2 bg-red-700 hover:bg-red-800 text-white text-xs py-2 rounded-md font-medium transition text-center"
+            className="w-full flex items-center justify-center gap-2 bg-red-700 hover:bg-red-800 text-white text-[14px] py-2 rounded-md font-medium transition text-center"
           >
             <HiOutlineLogout size={14} />
-            <span>Keluar Sistem</span>
+            <span>Logout</span>
           </button>
         </div>
       </aside>

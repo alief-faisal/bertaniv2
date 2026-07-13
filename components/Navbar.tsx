@@ -232,7 +232,7 @@ export default function Navbar({
   };
 
   return (
-    <header className="w-full bg-[#008000] text-white sticky top-0 z-[999] shadow-md">
+    <header className="w-full bg-[#ffff] text-white sticky top-0 z-[999] shadow-sm">
       <div className="max-w-7xl mx-auto px-4 py-5 flex items-center justify-between gap-3 md:gap-4">
         {/* LOGO */}
         <div className="hidden md:block shrink-0">
@@ -247,7 +247,7 @@ export default function Navbar({
               alt="Bertani Logo"
               width={120}
               height={36}
-              className="h-9 w-auto object-contain"
+              className="h-9 w-auto object-contain [filter:invert(90%)_sepia(79%)_saturate(2476%)_hue-rotate(86deg)_brightness(100%)_contrast(119%)]"
               priority
             />
           </button>
@@ -256,7 +256,7 @@ export default function Navbar({
         {/* SEARCHBAR & FILTER */}
         <form
           onSubmit={handleSearchSubmit}
-          className="flex flex-1 items-center bg-white rounded-[10px] text-gray-800 shadow-sm h-11 relative max-w-full md:max-w-xl"
+          className="flex flex-1 items-center bg-white border border-gray-300 rounded-[10px] text-gray-800 h-11 relative max-w-full md:max-w-xl"
         >
           <div className="relative border-r border-gray-200 h-full flex items-center z-[1000]">
             <button
@@ -343,8 +343,8 @@ export default function Navbar({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari kelompok tani, wilayah, dan lainnya ..."
-              className="w-full outline-none text-xs md:text-[14px] bg-transparent text-gray-800 px-2"
+              placeholder="Temukan kelompok tani, wilayah dan lainnya ..."
+              className="w-full outline-none text-md md:text-[15px] text-gray-900 px-2"
             />
             <button
               type="submit"
@@ -398,13 +398,13 @@ export default function Navbar({
               <>
                 <Link
                   href="/login"
-                  className="text-sm font-medium hover:underline"
+                  className="text-[14px] text-[#008000] font-medium hover:underline"
                 >
                   Masuk
                 </Link>
                 <Link
                   href="/register"
-                  className="text-sm font-medium bg-white text-[#008000] px-4 py-2 rounded-[10px] shadow"
+                  className="text-[14px] font-medium bg-[#008000] text-white px-4 py-1.5 rounded-[5px] shadow"
                 >
                   Daftar
                 </Link>
@@ -419,14 +419,14 @@ export default function Navbar({
                         ? "/poktan"
                         : "/user"
                   }
-                  className="flex items-center gap-1 bg-green-800 px-3 py-1.5 rounded-md text-xs font-semibold"
+                  className="flex items-center gap-1 bg-green-800 px-3 py-1.5 rounded-md text-[14px] font-semibold"
                 >
                   <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard
                 </Link>
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="text-xs bg-white text-green-800 px-3 py-1.5 rounded-md opacity-100 hover:opacity-100 cursor-pointer font-semibold"
+                  className="text-[14px] bg-white text-green-800 px-3 py-1.5 rounded-md opacity-100 hover:opacity-100 cursor-pointer font-semibold"
                 >
                   Keluar
                 </button>

@@ -34,7 +34,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${roboto.variable} font-sans bg-gray-50 text-gray-900 antialiased`}
+        className={`${roboto.variable} font-sans  text-gray-900 antialiased`}
       >
         {/* 2. Bungkus children dengan SmoothScroll agar seluruh halaman menjadi smooth */}
         <SmoothScroll>{children}</SmoothScroll>
