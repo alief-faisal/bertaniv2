@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { supabase } from "@/utils/supabase";
 import { Banner } from "@/types";
 import { BannerSkeleton } from "@/components/SkeletonShimmer";
@@ -150,26 +151,34 @@ export default function BannerCarousel() {
                 width: isMobile ? "47%" : "38%",
                 marginRight: "16px",
               }}
-              className="shrink-0 h-36 md:h-60 overflow-hidden rounded-[38px] shadow-sm border border-gray-100"
+              className="relative shrink-0 h-36 md:h-60 overflow-hidden rounded-[38px] shadow-sm border border-gray-100"
             >
               {banner.target_url ? (
                 <a
                   href={banner.target_url}
                   rel="noopener noreferrer"
-                  className="block w-full h-full"
+                  className="block w-full h-full relative"
                 >
-                  <img
+                  <Image
                     src={banner.image_url}
                     alt="Promo"
-                    className="w-full h-full object-cover rounded-2xl"
+                    fill
+                    sizes="(max-width: 768px) 47vw, 38vw"
+                    priority={
+                      index >= originalCount && index < originalCount * 2
+                    }
+                    className="object-cover rounded-2xl"
                     draggable={false}
                   />
                 </a>
               ) : (
-                <img
+                <Image
                   src={banner.image_url}
                   alt="Promo"
-                  className="w-full h-full object-cover rounded-2xl"
+                  fill
+                  sizes="(max-width: 768px) 47vw, 38vw"
+                  priority={index >= originalCount && index < originalCount * 2}
+                  className="object-cover rounded-2xl"
                   draggable={false}
                 />
               )}
