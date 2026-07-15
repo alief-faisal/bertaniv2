@@ -44,12 +44,12 @@ const itemVariants = {
 export default function MainMenu() {
   return (
     <section className="max-w-7xl mx-auto px-4 my-8">
-      {/* Container Induk dengan Framer Motion */}
+      {/* Container Induk tanpa bg putih, border, dan shadow */}
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-4 md:grid-cols-8 gap-4 justify-items-center bg-white p-6 rounded-[20px] border border-gray-200 shadow-xs"
+        className="grid grid-cols-4 md:grid-cols-8 gap-6 justify-items-center p-2"
       >
         {MENUS.map((menu, i) => {
           return (
@@ -68,8 +68,8 @@ export default function MainMenu() {
                 damping: 25,
               }}
             >
-              {/* Wrapper Icon */}
-              <div className="p-2 transition-colors duration-200">
+              {/* Wrapper Icon: Diubah jadi bulat sempurna dengan bg hijau muda */}
+              <div className="w-16 h-16 flex items-center justify-center bg-[#008000]/10 rounded-[23px] transition-colors duration-800 group-hover:bg-green-100">
                 <img
                   src={menu.icon}
                   alt={menu.name}
@@ -78,7 +78,7 @@ export default function MainMenu() {
               </div>
 
               {/* Text Label */}
-              <span className="text-[14px] font-medium text-gray-700 text-center tracking-tight">
+              <span className="text-[14px] font-medium text-gray-700 text-center tracking-tight max-w-[100px] line-clamp-2">
                 {menu.name}
               </span>
             </motion.div>

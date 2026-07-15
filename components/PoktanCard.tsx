@@ -108,7 +108,7 @@ export default function PoktanCard({
       aria-label={`Lihat detail ${data.nama_kelompok}`}
       className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#008000] rounded-md h-full"
     >
-      <article className="flex flex-col sm:flex-row md:flex-col bg-white border border-gray-200 rounded-[10px] overflow-hidden shadow-xs transition h-full">
+      <article className="flex flex-col sm:flex-row md:flex-col bg-white border border-gray-100 rounded-[10px] overflow-hidden shadow-xs transition h-full">
         {/* Bagian Foto (Simetris & Fixed Height di Desktop) */}
         <div className="relative w-full sm:w-56 md:w-full h-48 md:h-52 shrink-0 overflow-hidden">
           {allImages.map((src, i) => {
@@ -229,11 +229,11 @@ export default function PoktanCard({
               </h3>
             </div>
 
-            {data.is_active && (
-              <span className="flex items-center gap-1 bg-green-700 text-white px-1.5 py-0.5 rounded text-[10px] font-semibold w-fit">
-                <ShieldCheck className="w-3 h-3" /> Terverifikasi
-              </span>
-            )}
+            {/* {data.is_active && (
+  <span className="flex items-center gap-1 bg-green-700 text-white px-1.5 py-0.5 rounded text-[10px] font-semibold w-fit">
+    <ShieldCheck className="w-3 h-3" /> Terverifikasi
+  </span>
+)} */}
 
             <p className="text-xs text-slate-700 flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5 text-slate-700 shrink-0" />
@@ -248,7 +248,7 @@ export default function PoktanCard({
           </div>
 
           {/* Bagian Harga */}
-          <div className="pt-4 border-t border-gray-100 flex items-end justify-between">
+          <div className="pt-4  flex items-end justify-between">
             <div className="flex flex-col w-full">
               <span className="text-[12px] text-slate-700">Tarif Jasa</span>
               <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">

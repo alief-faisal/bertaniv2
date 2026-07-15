@@ -249,7 +249,7 @@ export default function FilterSidebar({
               {isExpanded ? (
                 <>
                   <ChevronUp className="w-3.5 h-3.5 shrink-0" />
-                  <span className="group-hover:underline decoration-[#008000] underline-offset-4">
+                  <span className="group-hover:underline decoration-[#008000] underline-offset-4 cursor-pointer">
                     Sembunyikan
                   </span>
                 </>

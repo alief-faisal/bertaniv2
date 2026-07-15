@@ -311,7 +311,7 @@ export default function RegisterPage() {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none text-sm focus:border-green-600"
-              placeholder="Budi Santoso"
+              placeholder="Masukkan Nama Anda"
             />
           </div>
 
@@ -320,7 +320,7 @@ export default function RegisterPage() {
               htmlFor="selectedRole"
               className="block text-xs font-semibold text-gray-600 mb-1"
             >
-              Daftar Sebagai Peran
+              Daftar Sebagai :
             </label>
             <select
               id="selectedRole"
@@ -356,7 +356,7 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none text-sm focus:border-green-600"
-              placeholder="budi@email.com"
+              placeholder="Masukkan Email Anda"
             />
           </div>
 
@@ -448,12 +448,12 @@ export default function RegisterPage() {
                 value={inputNamaAnggota}
                 onChange={handleAnggotaInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none text-sm focus:border-green-600 resize-none"
-                placeholder="Urutan ke-1 otomatis jadi Ketua. Contoh: Ahmad (Ketua), Dani, Yusuf, Siti"
+                placeholder="Masukkan nama-nama anggota, pisahkan menggunakan tanda (koma), nama pertama otomatis akan menjadi ketua, contoh : Ujang, Agus, Ayu."
                 aria-describedby="anggota-hint"
               />
               <p id="anggota-hint" className="text-[11px] text-gray-400 mt-0.5">
                 Nama pertama yang Anda masukkan otomatis terdaftar sebagai Ketua
-                Kelompok.
+                Kelompok
               </p>
             </div>
 
@@ -463,7 +463,7 @@ export default function RegisterPage() {
                   htmlFor="jumlahAnggota"
                   className="block text-xs font-semibold text-gray-600 mb-1"
                 >
-                  Jumlah Anggota Terdeteksi (Kalkulasi Otomatis)
+                  Jumlah Anggota Otomatis
                 </label>
                 <output
                   id="jumlahAnggota"
@@ -477,9 +477,9 @@ export default function RegisterPage() {
               <div>
                 <label
                   htmlFor="hargaSewa"
-                  className="block text-xs font-semibold text-gray-600 mb-1"
+                  className="block text-xs font-semibold text-gray-600 "
                 >
-                  Tarif Sewa Alat Utama (Rp)
+                  Tarif Jasa (IDR)
                 </label>
                 <input
                   id="hargaSewa"
@@ -517,17 +517,17 @@ export default function RegisterPage() {
             <div>
               <div className="flex justify-between items-center mb-1">
                 <span className="block text-xs font-semibold text-gray-600">
-                  Koordinat Pemetaan Lahan
+                  Koordinat Kelompok Tani
                 </span>
                 <button
                   type="button"
                   onClick={handleDetectLocation}
                   disabled={locLoading}
-                  className="text-[11px] text-white bg-green-700 px-2 py-0.5 rounded border disabled:opacity-50 cursor-pointer"
+                  className="text-[13px] text-white bg-green-700 px-3 py-2 rounded-md border disabled:opacity-50 cursor-pointer"
                 >
                   {locLoading
-                    ? "Mencari Satelit GPS..."
-                    : "Deteksi Lokasi Otomatis"}
+                    ? "Medeteksi lokasi perangkat..."
+                    : "Deteksi Koordinat Otomatis"}
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -673,9 +673,9 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-green-700 hover:bg-green-800 text-white font-medium py-2 rounded-md transition text-sm disabled:opacity-50"
+          className="w-full bg-green-700 hover:bg-green-800 text-white font-medium py-2 rounded-md transition text-sm disabled:opacity-50 mt-5"
         >
-          {loading ? "Sedang Memproses Pendaftaran..." : "Daftar Akun Sekarang"}
+          {loading ? "Sedang Memproses Pendaftaran..." : "Daftar"}
         </button>
 
         <div className="text-center pt-2">

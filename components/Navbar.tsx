@@ -426,7 +426,7 @@ export default function Navbar({
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="text-[14px] bg-white text-green-800 px-3 py-1.5 rounded-md opacity-100 hover:opacity-100 cursor-pointer font-semibold"
+                  className="text-[14px] bg-white text-green-800 px-3 py-1.5 rounded-md opacity-100 hover:opacity-100 hover:underline cursor-pointer font-semibold"
                 >
                   Keluar
                 </button>

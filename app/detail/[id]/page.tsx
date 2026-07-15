@@ -421,7 +421,6 @@ export default function DetailPoktanPage() {
                   </dd>
                 </div>
               </dl>
-
               {/* DAFTAR ANGGOTA */}
               {poktan.daftar_anggota && (
                 <div className="border-t border-gray-100 pt-5 mt-5">
@@ -429,30 +428,31 @@ export default function DetailPoktanPage() {
                     Daftar Anggota
                   </h2>
                   <div className="bg-gray-50 rounded-lg p-4">
-                    <ol className="space-y-2">
+                    {/* Menggunakan flex flex-wrap agar otomatis ke samping */}
+                    <div className="flex flex-wrap gap-3">
                       {poktan.daftar_anggota
                         .split(",")
                         .map((nama) => nama.trim())
                         .filter((nama) => nama !== "")
                         .map((nama, index) => (
-                          <li
+                          <div
                             key={`${nama}-${index}`}
-                            className="flex items-start gap-2 text-sm"
+                            className="flex items-center gap-2 text-sm bg-white px-3 py-1.5 rounded-md border border-gray-100 shadow-sm"
                           >
-                            <span className="inline-flex items-center justify-center min-w-6 h-6 bg-[#008000] text-white text-xs font-semibold rounded">
+                            <span className="inline-flex items-center justify-center min-w-5 h-5 bg-[#008000] text-white text-xs font-semibold rounded-full">
                               {index + 1}
                             </span>
-                            <span className="text-slate-800 leading-6">
+                            <span className="text-slate-800 whitespace-nowrap">
                               {nama}
                               {index === 0 && (
-                                <span className="ml-2 text-xs text-[#008000] font-semibold">
+                                <span className="ml-1 text-xs text-[#008000] font-semibold">
                                   (Ketua)
                                 </span>
                               )}
                             </span>
-                          </li>
+                          </div>
                         ))}
-                    </ol>
+                    </div>
                   </div>
                 </div>
               )}
@@ -472,7 +472,7 @@ export default function DetailPoktanPage() {
                     ? "Hapus dari favorit"
                     : "Tambahkan ke favorit"
                 }
-                className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-white border-2 border-gray-200 hover:border-yellow-300 hover:bg-yellow-50 transition shadow-sm"
+                className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-white border-2 border-gray-200 hover:border-yellow-300 hover:bg-yellow-50 transition shadow-sm cursor-pointer"
               >
                 <i
                   className={`text-xl ${favoriteIds.has(id) ? "fa-solid fa-bookmark text-yellow-500" : "fa-regular fa-bookmark text-gray-600"}`}
@@ -515,7 +515,7 @@ export default function DetailPoktanPage() {
                 }}
                 className="w-full mt-4 font-semibold py-3 rounded-[10px] flex items-center justify-center gap-2 transition bg-[#008000] hover:bg-green-700 text-white cursor-pointer"
               >
-                Order Sekarang
+                Pesan Sekarang
               </button>
             </div>
 
@@ -537,7 +537,6 @@ export default function DetailPoktanPage() {
                 }}
                 className="w-full font-semibold py-2.5 rounded-[10px] flex items-center justify-center gap-2 transition border border-[#008000] text-[#008000] hover:bg-green-50 cursor-pointer"
               >
-                <MessageCircle className="w-4 h-4" />
                 Chat Kelompok Tani
               </button>
             </div>
@@ -548,8 +547,8 @@ export default function DetailPoktanPage() {
         {recommendedPoktans.length > 0 && (
           <section className="mt-12">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">
-                Rekomendasi Poktan di Kec. {poktan.kecamatan}
+              <h2 className="text-md md:text-[23px] font-bold text-gray-900">
+                Rekomendasi Poktan lain di Kec. {poktan.kecamatan}
               </h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
