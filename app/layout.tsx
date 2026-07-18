@@ -11,7 +11,7 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-  title: "Bertani - Pencarian & Pemetaan Kelompok Tani Pandeglang",
+  title: "Pencarian & Pemetaan Kelompok Tani Pandeglang",
   description:
     "Platform pemetaan, pemesanan layanan, dan interaksi Kelompok Tani Tani di Kabupaten Pandeglang",
 };

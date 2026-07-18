@@ -13,25 +13,24 @@ const ShimmerEffect = () => (
   />
 );
 
-// Skeleton untuk Poktan Card
+// Skeleton untuk Poktan Card (Diselaraskan dengan ukuran & spacing baru)
 export function PoktanCardSkeleton() {
   return (
-    <article className="flex flex-col sm:flex-row md:flex-col bg-white border border-gray-200 rounded-[10px] overflow-hidden shadow-sm h-full">
-      {/* Bagian Foto Skeleton */}
-      <div className="relative w-full sm:w-56 md:w-full h-48 md:h-52 shrink-0 bg-gray-200 overflow-hidden">
+    <article className="flex flex-col sm:flex-row md:flex-col bg-white border border-gray-100 rounded-[10px] overflow-hidden shadow-xs h-full">
+      {/* 1. Bagian Foto Skeleton (Tinggi disesuaikan ke h-40 md:h-44) */}
+      <div className="relative w-full sm:w-56 md:w-full h-40 md:h-44 shrink-0 bg-gray-200 overflow-hidden">
         <ShimmerEffect />
 
         {/* Badge Jarak Skeleton */}
         <div className="absolute top-0 left-0 w-20 h-7 bg-gray-300 rounded-br-xl" />
 
         {/* Tombol Chevron Skeleton */}
-        <div className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-gray-300" />
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-gray-300" />
+        <div className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-gray-300" />
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-gray-300" />
 
         {/* Dots Indicator Skeleton */}
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
           <div className="w-4 h-1.5 rounded-full bg-gray-300" />
-          <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
           <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
         </div>
 
@@ -39,20 +38,15 @@ export function PoktanCardSkeleton() {
         <div className="absolute top-3 right-3 w-8 h-8 rounded-full bg-gray-300" />
       </div>
 
-      {/* Wrapper Konten Skeleton */}
-      <div className="flex flex-col flex-1 p-5 justify-between gap-4">
+      {/* 2. Wrapper Konten Skeleton (Padding & Gap disesuaikan ke p-4 gap-2) */}
+      <div className="flex flex-col flex-1 p-4 justify-between gap-2">
         {/* Info Utama Skeleton */}
-        <div className="space-y-2">
-          {/* Judul Skeleton - 2 baris */}
-          <div className="space-y-2 min-h-[3.5rem]">
+        <div className="space-y-1">
+          {/* Judul Skeleton (min-h disesuaikan ke 2.5rem) */}
+          <div className="min-h-[2.5rem] flex items-start">
             <div className="relative h-5 bg-gray-200 rounded w-full overflow-hidden">
               <ShimmerEffect />
             </div>
-          </div>
-
-          {/* Badge Terverifikasi Skeleton */}
-          <div className="relative w-28 h-5 bg-gray-200 rounded overflow-hidden">
-            <ShimmerEffect />
           </div>
 
           {/* Lokasi Skeleton */}
@@ -66,16 +60,16 @@ export function PoktanCardSkeleton() {
           </div>
         </div>
 
-        {/* Bagian Harga Skeleton */}
-        <div className="pt-4 border-t border-gray-100">
-          <div className="space-y-2">
+        {/* Bagian Harga Skeleton (pt-2 tanpa garis border atas sesuai aslinya) */}
+        <div className="pt-2 flex items-end justify-between">
+          <div className="space-y-1 w-full">
             {/* Label Tarif Skeleton */}
             <div className="relative h-3 bg-gray-200 rounded w-16 overflow-hidden">
               <ShimmerEffect />
             </div>
 
-            {/* Harga Skeleton */}
-            <div className="flex items-baseline gap-2">
+            {/* Harga Utama Skeleton */}
+            <div className="flex items-baseline gap-1 mt-0.5">
               <div className="relative h-6 bg-gray-200 rounded w-32 overflow-hidden">
                 <ShimmerEffect />
               </div>
@@ -85,7 +79,7 @@ export function PoktanCardSkeleton() {
             </div>
 
             {/* Harga Coret & Badge Diskon Skeleton */}
-            <div className="flex items-center gap-2">
+            <div className="mt-1 flex items-center gap-2">
               <div className="relative h-4 bg-gray-200 rounded w-24 overflow-hidden">
                 <ShimmerEffect />
               </div>
@@ -109,7 +103,7 @@ export function MiniMapSkeleton() {
       {/* Tombol Lokasi Skeleton */}
       <div className="absolute top-4 left-4 w-12 h-12 rounded-lg bg-gray-300 shadow-md" />
 
-      {/* Marker Skeleton - beberapa titik */}
+      {/* Marker Skeleton */}
       <div className="absolute top-1/4 left-1/3 w-8 h-8 rounded-full bg-gray-300" />
       <div className="absolute top-1/2 left-1/2 w-8 h-8 rounded-full bg-gray-300" />
       <div className="absolute top-2/3 left-2/3 w-8 h-8 rounded-full bg-gray-300" />
@@ -133,7 +127,7 @@ export function BannerSkeleton() {
       {/* Kontainer Viewport Carousel */}
       <div className="w-full overflow-hidden py-2">
         <div className="flex flex-nowrap">
-          {/* Banner Skeleton - 3 items untuk simulasi carousel */}
+          {/* Banner Skeleton Items */}
           <div
             className="shrink-0 h-36 md:h-60 overflow-hidden rounded-[38px] shadow-sm border border-gray-100"
             style={{

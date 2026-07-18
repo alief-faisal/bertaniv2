@@ -1,4 +1,3 @@
-// 📁 Simpan sebagai: app/page.tsx
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -17,7 +16,6 @@ import {
   MiniMapSkeleton,
 } from "@/components/SkeletonShimmer";
 
-// Move dynamic import outside component to avoid recreation on each render
 const PoktanMiniMap = dynamic(() => import("@/components/PoktanMiniMap"), {
   ssr: false,
   loading: () => <MiniMapSkeleton />,
@@ -43,11 +41,11 @@ export default function Home() {
   const [filterKecamatan, setFilterKecamatan] = useState<string>("");
   const [searchKeyword, setSearchKeyword] = useState<string>("");
   const [minHarga, setMinHarga] = useState<number>(0);
-  
+
   // State dinamis untuk batas atas harga termahal
   const [priceCeiling, setPriceCeiling] = useState<number>(1000000);
   const [maxHarga, setMaxHarga] = useState<number>(1000000);
-  
+
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>("");
 
@@ -63,7 +61,7 @@ export default function Home() {
   // Get current user ID untuk favorites
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Gunakan hook useFavorites untuk realtime favorites
+  // hook useFavorites untuk realtime favorites
   const { favoriteIds, toggleFavorite } = useFavorites(currentUserId);
 
   // Ref supaya tidak setState pada komponen yang sudah unmount
@@ -202,7 +200,14 @@ export default function Home() {
     return () => {
       isMountedRef.current = false;
     };
-  }, [filterKecamatan, searchKeyword, minHarga, maxHarga, userLocation, hasSetInitialMax]);
+  }, [
+    filterKecamatan,
+    searchKeyword,
+    minHarga,
+    maxHarga,
+    userLocation,
+    hasSetInitialMax,
+  ]);
 
   // Helper function to retry fetching data
   const fetchRealData = () => {
@@ -282,7 +287,7 @@ export default function Home() {
             {loading ? <PoktanGridSkeleton count={6} /> : null}
 
             {!loading && poktanList.length === 0 && !errorMessage ? (
-              <div className="text-center py-20 bg-white rounded-xl border border-gray-200 text-sm text-gray-400">
+              <div className="text-center py-20 text-sm text-gray-400">
                 Belum ada data kelompok tani yang sesuai untuk filter ini.
               </div>
             ) : null}

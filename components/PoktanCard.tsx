@@ -6,7 +6,6 @@ import Image from "next/image";
 import {
   MapPin,
   Users,
-  ShieldCheck,
   Navigation,
   ChevronLeft,
   ChevronRight,
@@ -57,7 +56,6 @@ export default function PoktanCard({
     typeof data.distanceKm === "number" && Number.isFinite(data.distanceKm);
 
   // Gabungkan banner_url dengan gallery_urls jika ada
-  // Pastikan gallery_urls adalah array yang valid dan tidak kosong
   const galleryImages = Array.isArray(data.gallery_urls)
     ? data.gallery_urls.filter((url) => url && url.trim() !== "")
     : [];
@@ -108,9 +106,10 @@ export default function PoktanCard({
       aria-label={`Lihat detail ${data.nama_kelompok}`}
       className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#008000] rounded-md h-full"
     >
-      <article className="flex flex-col sm:flex-row md:flex-col bg-white border border-gray-100 rounded-[10px] overflow-hidden shadow-xs transition h-full">
-        {/* Bagian Foto (Simetris & Fixed Height di Desktop) */}
-        <div className="relative w-full sm:w-56 md:w-full h-48 md:h-52 shrink-0 overflow-hidden">
+      {/* Penambahan kelas 'group' untuk mendeteksi status hover pada card tujuan */}
+      <article className="group flex flex-col sm:flex-row md:flex-col bg-white border border-gray-100 rounded-[10px] overflow-hidden shadow-xs transition h-full">
+        {/* 1. Bagian Foto */}
+        <div className="relative w-full sm:w-56 md:w-full h-40 md:h-44 shrink-0 overflow-hidden">
           {allImages.map((src, i) => {
             const getTransitionClass = () => {
               if (i === currentImageIndex) return "translate-x-0";
@@ -145,39 +144,35 @@ export default function PoktanCard({
             </span>
           )}
 
-          {/* Tombol Chevron Kiri - Selalu muncul */}
+          {/* Tombol Chevron Kiri - opacity-0 group-hover:opacity-100 */}
           <button
             type="button"
             onClick={handlePrevImage}
             disabled={!hasMultipleImages}
             aria-label="Gambar sebelumnya"
-            className={`absolute left-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-9 h-9 rounded-full bg-white shadow-lg hover:scale-110 active:scale-95 transition z-20 ${
-              !hasMultipleImages
-                ? "opacity-30 cursor-not-allowed"
-                : "opacity-90 hover:opacity-100"
+            className={`absolute left-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 rounded-full bg-white shadow-md hover:scale-110 active:scale-95 transition-all duration-200 z-20 opacity-0 group-hover:opacity-100 ${
+              !hasMultipleImages ? "hidden" : ""
             }`}
           >
-            <ChevronLeft className="w-6 h-6 text-gray-800" />
+            <ChevronLeft className="w-5 h-5 text-gray-800" />
           </button>
 
-          {/* Tombol Chevron Kanan - Selalu muncul */}
+          {/* Tombol Chevron Kanan - opacity-0 group-hover:opacity-100 */}
           <button
             type="button"
             onClick={handleNextImage}
             disabled={!hasMultipleImages}
             aria-label="Gambar berikutnya"
-            className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-9 h-9 rounded-full bg-white shadow-lg hover:scale-110 active:scale-95 transition z-20 ${
-              !hasMultipleImages
-                ? "opacity-30 cursor-not-allowed"
-                : "opacity-90 hover:opacity-100"
+            className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 rounded-full bg-white shadow-md hover:scale-110 active:scale-95 transition-all duration-200 z-20 opacity-0 group-hover:opacity-100 ${
+              !hasMultipleImages ? "hidden" : ""
             }`}
           >
-            <ChevronRight className="w-6 h-6 text-gray-800" />
+            <ChevronRight className="w-5 h-5 text-gray-800" />
           </button>
 
-          {/* Indikator Dots - Hanya jika ada banyak gambar */}
+          {/* Indikator Dots - opacity-0 group-hover:opacity-100 */}
           {hasMultipleImages && (
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 transition-opacity duration-200 z-10 opacity-0 group-hover:opacity-100">
               {allImages.map((_, idx) => (
                 <button
                   key={idx}
@@ -187,7 +182,7 @@ export default function PoktanCard({
                     setCurrentImageIndex(idx);
                   }}
                   aria-label={`Gambar ${idx + 1}`}
-                  className={`w-1.5 h-1.5 rounded-full transition ${
+                  className={`w-1.5 h-1.5 rounded-full ${
                     idx === currentImageIndex
                       ? "bg-white w-4"
                       : "bg-white/60 hover:bg-white/80"
@@ -210,7 +205,7 @@ export default function PoktanCard({
             className="absolute top-3 right-3 flex items-center justify-center w-8 h-8 rounded-full bg-white/95 shadow hover:scale-110 active:scale-95 transition z-10"
           >
             <i
-              className={`text-lg transition-colors ${
+              className={`text-base transition-colors ${
                 isFavorite
                   ? "fa-solid fa-bookmark text-yellow-500"
                   : "fa-regular fa-bookmark text-gray-600"
@@ -219,28 +214,23 @@ export default function PoktanCard({
           </button>
         </div>
 
-        {/* Wrapper Konten: Menggunakan flex-1 dan justify-between agar tinggi konten selalu sejajar */}
-        <div className="flex flex-col flex-1 p-5 justify-between gap-4">
+        {/* 2. Wrapper Konten */}
+        <div className="flex flex-col flex-1 p-4 justify-between gap-2">
           {/* Info Utama */}
-          <div className="space-y-2">
+          <div className="space-y-1">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="font-bold text-gray-800 text-lg md:text-xl leading-snug line-clamp-2 min-h-[3.5rem]">
+              {/* 3. Judul */}
+              <h3 className="font-bold text-gray-800 text-base md:text-lg leading-snug line-clamp-2 min-h-[2.5rem]">
                 {data.nama_kelompok}
               </h3>
             </div>
 
-            {/* {data.is_active && (
-  <span className="flex items-center gap-1 bg-green-700 text-white px-1.5 py-0.5 rounded text-[10px] font-semibold w-fit">
-    <ShieldCheck className="w-3 h-3" /> Terverifikasi
-  </span>
-)} */}
-
-            <p className="text-xs text-slate-700 flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-slate-700 shrink-0" />
+            <p className="text-xs text-slate-600 flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
               Kec. {data.kecamatan}
             </p>
 
-            <div className="flex items-center gap-3 text-xs text-slate-700 font-medium flex-wrap">
+            <div className="flex items-center gap-3 text-xs text-slate-600 font-medium flex-wrap">
               <span className="flex items-center gap-1">
                 <Users className="w-3.5 h-3.5" /> {jumlahAnggota} anggota
               </span>
@@ -248,25 +238,25 @@ export default function PoktanCard({
           </div>
 
           {/* Bagian Harga */}
-          <div className="pt-4  flex items-end justify-between">
+          <div className="pt-2 flex items-end justify-between">
             <div className="flex flex-col w-full">
-              <span className="text-[12px] text-slate-700">Tarif Jasa</span>
-              <div className="flex items-baseline gap-2 mt-0.5 flex-wrap">
-                <span className="text-lg font-bold text-green-700 whitespace-nowrap">
+              <span className="text-[11px] text-slate-500">Tarif Jasa</span>
+              <div className="flex items-baseline gap-1 mt-0.5 flex-wrap">
+                <span className="text-base md:text-lg font-bold text-green-700 whitespace-nowrap">
                   IDR {formatRupiah(hargaDiskon)}
                 </span>
-                <span className="text-[10px] text-slate-700 font-semibold">
+                <span className="text-[10px] text-slate-500 font-semibold">
                   / Hari
                 </span>
               </div>
 
-              {/* Tempat Baru: Harga Coret & Badge Diskon Berdampingan */}
+              {/* 4. Harga Coret & Badge */}
               {diskonPersen > 0 && (
                 <div className="mt-1 flex items-center gap-2 flex-wrap">
-                  <span className="text-[14px] text-gray-600 font-medium relative inline-block before:content-[''] before:absolute before:left-0 before:right-0 before:top-1/2 before:h-[1.5px] before:bg-red-500 before:-translate-y-1/2 before:-rotate-5">
+                  <span className="text-[13px] text-gray-500 font-medium relative inline-block before:content-[''] before:absolute before:left-0 before:right-0 before:top-1/2 before:h-[1.5px] before:bg-red-500 before:-translate-y-1/2 before:-rotate-5">
                     IDR {formatRupiah(hargaSewa)}
                   </span>
-                  <span className="bg-red-50 text-red-600 text-[12px] font-semibold px-1.5 py-0.2 rounded header-badge flex items-center gap-1">
+                  <span className="bg-red-50 text-red-600 text-[11px] font-semibold px-1.5 py-0.5 rounded header-badge flex items-center gap-1">
                     <i className="fa-solid fa-tag text-red-600"></i>
                     {diskonPersen}%
                   </span>

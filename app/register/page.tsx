@@ -343,7 +343,7 @@ export default function RegisterPage() {
           <div>
             <label
               htmlFor="email"
-              className="block text-xs font-semibold text-gray-600 mb-1"
+              className="block text-xs font-semibold text-gray-600 mt-2 mb-1"
             >
               Email
             </label>
@@ -363,7 +363,7 @@ export default function RegisterPage() {
           <div>
             <label
               htmlFor="password"
-              className="block text-xs font-semibold text-gray-600 mb-1"
+              className="block text-xs font-semibold text-gray-600 mt-2 mb-1"
             >
               Kata Sandi
             </label>
@@ -382,12 +382,10 @@ export default function RegisterPage() {
           </div>
         </fieldset>
 
-        {/* --- FORM KELOMPOK TANI (Hanya muncul jika role = 'poktan') --- */}
+        {/* --- form kelompok tani --- */}
         {selectedRole === "poktan" && (
-          <fieldset className="border-t border-dashed border-gray-200 pt-4 space-y-4 px-0 pb-0">
-            <legend className="text-xs font-bold text-green-700 uppercase tracking-wider">
-              Informasi Detail Kelompok Tani (Poktan)
-            </legend>
+          <fieldset className="border-t border-dashed border-gray-200 pt-1 space-y-1">
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -406,7 +404,7 @@ export default function RegisterPage() {
                   value={namaKelompok}
                   onChange={(e) => setNamaKelompok(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none text-sm focus:border-green-600"
-                  placeholder="Poktan Tani Makmur"
+                  placeholder="Masukkan Nama Poktan"
                 />
               </div>
 
@@ -438,7 +436,7 @@ export default function RegisterPage() {
                 htmlFor="inputNamaAnggota"
                 className="block text-xs font-semibold text-gray-600 mb-1"
               >
-                Nama-Nama Anggota Kelompok (Pisahkan dengan tanda koma)
+                Nama-Nama Anggota Kelompok
               </label>
               <textarea
                 id="inputNamaAnggota"
@@ -448,13 +446,10 @@ export default function RegisterPage() {
                 value={inputNamaAnggota}
                 onChange={handleAnggotaInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md outline-none text-sm focus:border-green-600 resize-none"
-                placeholder="Masukkan nama-nama anggota, pisahkan menggunakan tanda (koma), nama pertama otomatis akan menjadi ketua, contoh : Ujang, Agus, Ayu."
+                placeholder="Pisahkan dengan tanda koma, urutan pertama otomatis menjadi ketua kelompok."
                 aria-describedby="anggota-hint"
               />
-              <p id="anggota-hint" className="text-[11px] text-gray-400 mt-0.5">
-                Nama pertama yang Anda masukkan otomatis terdaftar sebagai Ketua
-                Kelompok
-              </p>
+
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -523,7 +518,7 @@ export default function RegisterPage() {
                   type="button"
                   onClick={handleDetectLocation}
                   disabled={locLoading}
-                  className="text-[13px] text-white bg-green-700 px-3 py-2 rounded-md border disabled:opacity-50 cursor-pointer"
+                  className="text-[13px] text-white bg-green-700 px-1 py-1 rounded-md border disabled:opacity-50"
                 >
                   {locLoading
                     ? "Medeteksi lokasi perangkat..."
@@ -542,7 +537,7 @@ export default function RegisterPage() {
                     step="any"
                     required
                     value={latitude}
-                    onChange={(e) => setLatitude(e.target.value)} // <-- Sekarang bisa diketik manual
+                    onChange={(e) => setLatitude(e.target.value)} 
                     className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md text-sm text-gray-800 outline-none focus:border-green-600"
                     placeholder="Latitude"
                   />
