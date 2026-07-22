@@ -1,7 +1,7 @@
 // 📁 Simpan sebagai: components/Navbar.tsx
 "use client";
 
-import React, { useState, useEffect, MouseEvent } from "react";
+import React, { useState, useEffect, useRef, MouseEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Search, ChevronDown, LayoutDashboard, Receipt } from "lucide-react";
@@ -48,12 +48,9 @@ export const KECAMATAN_LIST: string[] = [
 
 interface NavbarProps {
   onFilterChange: (kecamatan: string, search: string) => void;
-  // Dipanggil dengan koordinat asli pengguna setelah GPS browser berhasil,
-  // supaya halaman utama bisa menghitung & menampilkan badge jarak per kartu.
   onLocationDetected?: (latitude: number, longitude: number) => void;
 }
 
-// Batasi angka badge supaya layout tidak melebar, mis. 99+ bukan 134.
 function formatBadgeCount(count: number): string {
   return count > 99 ? "99+" : String(count);
 }
@@ -70,15 +67,46 @@ export default function Navbar({
 
   const { userId, role: userRole } = useCurrentUser();
 
-  // Jumlah favorit & jumlah pesanan milik pengguna yang sedang login,
-  // ditampilkan sebagai badge kecil di navbar.
   const [favoriteCount, setFavoriteCount] = useState<number>(0);
   const [orderCount, setOrderCount] = useState<number>(0);
 
-  // State untuk menangani double-click pada logo
   const [lastClickTime, setLastClickTime] = useState<number>(0);
 
-  // Load Font Awesome CSS
+  // Ref untuk mendeteksi klik di luar dropdown lokasi
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // 1. Menutup dropdown saat mengklik di luar komponen dropdown lokasi
+  useEffect(() => {
+    const handleClickOutside = (event: globalThis.MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpenDropdown(false);
+      }
+    };
+
+    if (isOpenDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpenDropdown]);
+
+  // 2. Reset otomatis data filter saat query pencarian dikosongkan
+  useEffect(() => {
+    if (searchQuery === "") {
+      const rawLoc = selectedLoc.replace("Kec. ", "");
+      const filterValue =
+        rawLoc === "Semua Wilayah" || rawLoc === "Lokasi Terdekat"
+          ? ""
+          : rawLoc;
+      onFilterChange(filterValue, "");
+    }
+  }, [searchQuery, selectedLoc, onFilterChange]);
+
+  // 3. Load Font Awesome Icon
   useEffect(() => {
     if (!document.querySelector('link[href*="font-awesome"]')) {
       const link = document.createElement("link");
@@ -89,10 +117,9 @@ export default function Navbar({
     }
   }, []);
 
+  // 4. Fetch Badges (Favorit & Pesanan)
   useEffect(() => {
-    if (!userId) {
-      return;
-    }
+    if (!userId) return;
 
     let isMounted = true;
 
@@ -114,9 +141,6 @@ export default function Navbar({
 
     loadCounts();
 
-    // REALTIME: begitu ada baris baru/terhapus di user_favorites atau orders
-    // milik user ini (dari komponen manapun — PoktanCard, OrderModal, dll),
-    // badge di navbar langsung ikut berubah tanpa perlu refresh halaman.
     const channel = supabase
       .channel(`navbar-badges-${userId}`)
       .on(
@@ -125,12 +149,9 @@ export default function Navbar({
           event: "*",
           schema: "public",
           table: "user_favorites",
-          filter: `user_id=eq.${userId}`,
+          filter: `user_id=${userId}`,
         },
-        (payload) => {
-          console.log("🔔 Navbar realtime update (favorites):", payload);
-          loadCounts();
-        },
+        () => loadCounts(),
       )
       .on(
         "postgres_changes",
@@ -138,16 +159,11 @@ export default function Navbar({
           event: "*",
           schema: "public",
           table: "orders",
-          filter: `user_id=eq.${userId}`,
+          filter: `user_id=${userId}`,
         },
-        (payload) => {
-          console.log("🔔 Navbar realtime update (orders):", payload);
-          loadCounts();
-        },
+        () => loadCounts(),
       )
-      .subscribe((status) => {
-        console.log("📡 Navbar subscription status:", status);
-      });
+      .subscribe();
 
     return () => {
       isMounted = false;
@@ -173,8 +189,6 @@ export default function Navbar({
         setSelectedLoc("Lokasi Terdekat");
         setIsOpenDropdown(false);
         setLoadingLocation(false);
-        // Kosongkan filter kecamatan supaya semua poktan tampil, diurutkan
-        // berdasarkan jarak asli dari koordinat GPS (bukan kecamatan tebakan).
         onFilterChange("", searchQuery);
         onLocationDetected?.(latitude, longitude);
       },
@@ -221,10 +235,8 @@ export default function Navbar({
     const timeDiff = currentTime - lastClickTime;
 
     if (timeDiff < 500) {
-      // Double-click terdeteksi (kurang dari 500ms)
       window.location.reload();
     } else {
-      // Single-click - navigate ke beranda
       window.location.href = "/";
     }
 
@@ -240,7 +252,7 @@ export default function Navbar({
             onClick={handleLogoClick}
             className="cursor-pointer bg-transparent border-0 p-0"
             type="button"
-            aria-label="Kembali ke beranda (klik 2 kali untuk refresh)"
+            aria-label="Kembali ke beranda"
           >
             <Image
               src="/logo/logo.png"
@@ -256,19 +268,23 @@ export default function Navbar({
         {/* SEARCHBAR & FILTER */}
         <form
           onSubmit={handleSearchSubmit}
-          className="flex flex-1 items-center bg-white border border-gray-300 rounded-[10px] text-gray-800 h-11 relative max-w-full md:max-w-xl"
+          className="flex flex-1 items-center gap-2 max-w-full md:max-w-3xl"
         >
-          <div className="relative border-r border-gray-200 h-full flex items-center z-[1000]">
+          {/* TOMBOL & DROPDOWN LOKASI */}
+          <div
+            ref={dropdownRef}
+            className="relative border border-gray-300 rounded-[10px] bg-white h-11 flex items-center shrink-0 z-[1000] focus-within:ring-2 focus-within:ring-[#008000] focus-within:border-transparent transition-all"
+          >
             <button
               type="button"
               onClick={(e) => {
                 e.preventDefault();
-                setIsOpenDropdown(!isOpenDropdown);
+                setIsOpenDropdown((prev) => !prev);
               }}
               aria-haspopup="listbox"
               aria-expanded={isOpenDropdown}
               aria-label="Pilih wilayah atau deteksi lokasi"
-              className="flex items-center gap-2 px-2.5 md:px-4 h-full text-xs md:text-sm font-medium transition whitespace-nowrap text-gray-700 rounded-l-md"
+              className="flex items-center gap-2 px-2.5 md:px-4 h-full text-xs md:text-sm font-medium transition whitespace-nowrap text-gray-700 rounded-[10px] outline-none"
             >
               <i
                 className="fa-solid fa-location-dot text-gray-700 text-base shrink-0 w-5 text-center"
@@ -278,15 +294,23 @@ export default function Navbar({
                 {selectedLoc}
               </span>
               <ChevronDown
-                className={`w-5 h-5 text-gray-600 transition-transform duration-700 ease-in-out ${isOpenDropdown ? "rotate-180" : "rotate-0"}`}
+                className={`w-5 h-5 text-gray-600 transition-transform duration-700 ease-in-out ${
+                  isOpenDropdown ? "rotate-180" : "rotate-0"
+                }`}
               />
             </button>
 
+            {/* DROPDOWN MENU */}
             {isOpenDropdown && (
               <div
                 role="listbox"
                 aria-label="Daftar wilayah"
-                className="absolute left-0 top-full mt-2 w-60 bg-white border border-gray-200 rounded-[10px] shadow-xl max-h-90 overflow-y-auto z-[1001]"
+                /* 
+                  style={{ overscrollBehavior: "contain" }} memicu isolasi scroll 
+                  agar mouse scroll wheel berhenti di dalam kontainer ini tanpa menggerakkan latar belakang (body).
+                */
+                style={{ overscrollBehavior: "contain" }}
+                className="absolute left-0 top-full mt-2 w-60 bg-white border border-gray-200 rounded-[10px] shadow-xl max-h-80 overflow-y-auto z-[1001]"
               >
                 <div className="p-3 border-b border-gray-100 bg-gray-50">
                   <button
@@ -297,7 +321,9 @@ export default function Navbar({
                     aria-label="Deteksi lokasi GPS saat ini"
                   >
                     <i
-                      className={`fa-solid fa-location-crosshairs text-xl ${loadingLocation ? "animate-spin" : ""}`}
+                      className={`fa-solid fa-location-crosshairs text-xl ${
+                        loadingLocation ? "animate-spin" : ""
+                      }`}
                       aria-hidden="true"
                     ></i>
                     <span>
@@ -334,7 +360,8 @@ export default function Navbar({
             )}
           </div>
 
-          <div className="flex items-center flex-1 px-1 h-full rounded-r-md">
+          {/* KOTAK INPUT SEARCHBAR */}
+          <div className="flex items-center flex-1 px-1 h-11 bg-white border border-gray-300 rounded-[10px] text-gray-800 focus-within:ring-2 focus-within:ring-[#008000] focus-within:border-transparent transition-all group">
             <label htmlFor="navbar-search" className="sr-only">
               Cari kelompok tani atau wilayah
             </label>
@@ -342,13 +369,15 @@ export default function Navbar({
               id="navbar-search"
               type="text"
               value={searchQuery}
+              // Begitu pengguna mengklik/fokus pada searchbar, dropdown otomatis tertutup
+              onFocus={() => setIsOpenDropdown(false)}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Temukan kelompok tani, wilayah dan lainnya ..."
-              className="w-full outline-none text-md md:text-[15px] text-gray-900 px-2"
+              className="w-full outline-none text-md md:text-[15px] text-gray-900 px-2 bg-transparent"
             />
             <button
               type="submit"
-              className="p-2 text-gray-500 cursor-pointer active:scale-110"
+              className="p-2 text-gray-500 cursor-pointer active:scale-110 outline-none transition-colors group-focus-within:text-[#008000]"
               aria-label="Cari"
             >
               <Search className="w-7 h-7" />
@@ -361,10 +390,12 @@ export default function Navbar({
           {userRole !== "guest" && (
             <Link
               href="/user/favorit"
-              className="relative p-1.5 hover:bg-green-800 rounded-full transition flex items-center justify-center text-white"
-              aria-label={`Kelompok tani favorit saya${favoriteCount > 0 ? `, ${favoriteCount} tersimpan` : ""}`}
+              className="relative w-12 h-12 hover:bg-green-800 rounded-full transition flex items-center justify-center text-green-800 hover:text-white"
+              aria-label={`Kelompok tani favorit saya${
+                favoriteCount > 0 ? `, ${favoriteCount} tersimpan` : ""
+              }`}
             >
-              <i className="fa-solid fa-bookmark text-xl" aria-hidden="true" />
+              <i className="fa-solid fa-bookmark text-lg" aria-hidden="true" />
               {favoriteCount > 0 && (
                 <span
                   aria-hidden="true"
@@ -376,7 +407,6 @@ export default function Navbar({
             </Link>
           )}
 
-          {/* Muncul otomatis begitu pengguna punya minimal 1 pesanan */}
           {userRole !== "guest" && orderCount > 0 && (
             <Link
               href="/user/riwayat"
@@ -443,10 +473,14 @@ export default function Navbar({
             className="md:hidden flex flex-col justify-center items-center w-6 h-6 relative z-[1002]"
           >
             <span
-              className={`block absolute h-2 w-6 bg-white rounded-full transition-all duration-300 transform ${isOpenMobileMenu ? "rotate-45" : "-translate-y-2"}`}
+              className={`block absolute h-2 w-6 bg-white rounded-full transition-all duration-300 transform ${
+                isOpenMobileMenu ? "rotate-45" : "-translate-y-2"
+              }`}
             />
             <span
-              className={`block absolute h-2 w-6 bg-white rounded-full transition-all duration-300 transform ${isOpenMobileMenu ? "-rotate-45" : "translate-y-1"}`}
+              className={`block absolute h-2 w-6 bg-white rounded-full transition-all duration-300 transform ${
+                isOpenMobileMenu ? "-rotate-45" : "translate-y-1"
+              }`}
             />
           </button>
         </div>

@@ -145,7 +145,7 @@ export default function UserFavoritesPage() {
   return (
     <>
       <Navbar onFilterChange={() => {}} />
-      <main className="min-h-screen bg-gray-50 pb-20">
+      <main className="min-h-screen bg-red-50 pb-20">
         <section
           aria-labelledby="favorit-heading"
           className="max-w-4xl mx-auto px-4 py-8"
